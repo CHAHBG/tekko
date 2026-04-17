@@ -1,0 +1,28 @@
+[Unit]
+Description=CardTap Node.js server
+Documentation=https://github.com/your-org/cardtap
+After=network.target
+
+[Service]
+Type=simple
+User=cardtap
+WorkingDirectory=/opt/cardtap/website
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+
+# Load production environment variables
+EnvironmentFile=/opt/cardtap/website/.env
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/cardtap/website/data /opt/cardtap/website/uploads
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cardtap
+
+[Install]
+WantedBy=multi-user.target

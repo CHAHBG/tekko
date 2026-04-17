@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TEKKO Cartes de visite NFC premium</title>
+  <meta name="description" content="Remplace ta carte de visite papier par une carte NFC premium. Un tap suffit pour partager ton profil complet." />
+  <link rel="icon" type="image/png" href="tekko-favicon.png" />
+  <link rel="apple-touch-icon" href="tekko-favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #faf9f7;
+      --bg2: #f3f1ed;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,.06);
+      --border2: rgba(0,0,0,.1);
+      --text: #1a1a1a;
+      --text2: #555;
+      --muted: #999;
+      --subtle: #b0a89e;
+      --gold: #b8944f;
+      --gold-light: #d4b872;
+      --gold-bg: rgba(184,148,79,.06);
+      --gold-border: rgba(184,148,79,.16);
+      --radius: 16px;
+      --max: 1100px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+    button { font: inherit; cursor: pointer; border: none; background: none; }
+
+    /* ───────────── NAV ───────────── */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(250,249,247,.82);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: var(--max); margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 56px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: 1rem; font-weight: 800; letter-spacing: -.04em;
+    }
+    .nav-logo img {
+      height: 48px; width: auto;
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 2rem;
+      font-size: .82rem; font-weight: 500; color: var(--muted);
+    }
+    .nav-links a { transition: color .15s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--text); color: #fff;
+      font-size: .78rem; font-weight: 650;
+      padding: .4rem 1rem; border-radius: 8px;
+      transition: opacity .15s;
+    }
+    .nav-cta:hover { opacity: .8; }
+
+    /* Mobile hamburger */
+    .nav-burger {
+      display: none;
+      width: 32px; height: 32px;
+      align-items: center; justify-content: center;
+      cursor: pointer; background: none; border: none;
+      padding: 4px;
+    }
+    .nav-burger span {
+      display: block; width: 18px; height: 2px;
+      background: var(--text); border-radius: 2px;
+      position: relative; transition: transform .2s;
+    }
+    .nav-burger span::before, .nav-burger span::after {
+      content: ''; position: absolute; left: 0;
+      width: 18px; height: 2px;
+      background: var(--text); border-radius: 2px;
+      transition: transform .2s;
+    }
+    .nav-burger span::before { top: -6px; }
+    .nav-burger span::after { top: 6px; }
+
+    .nav-mobile-menu {
+      display: none;
+      position: fixed; top: 56px; left: 0; right: 0;
+      background: rgba(250,249,247,.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      flex-direction: column; gap: .6rem;
+      z-index: 199;
+    }
+    .nav-mobile-menu.open { display: flex; }
+    .nav-mobile-menu a {
+      font-size: .9rem; font-weight: 500; color: var(--text2);
+      padding: .5rem 0; border-bottom: 1px solid var(--border);
+    }
+    .nav-mobile-menu a:last-child { border-bottom: none; }
+
+    /* WhatsApp floating button */
+    .whatsapp-float {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      z-index: 300;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #25D366;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(37,211,102,.35);
+      transition: transform .15s;
+    }
+    .whatsapp-float:hover { transform: scale(1.08); }
+    .whatsapp-float svg { width: 28px; height: 28px; fill: #fff; }
+
+    /* ───────────── LAYOUT ───────────── */
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 2rem; }
+
+    /* ───────────── HERO ───────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      align-items: center;
+      gap: 4rem;
+      padding: 7rem 0 5rem;
+    }
+    .hero-pill {
+      display: inline-flex; align-items: center; gap: .45rem;
+      font-size: .62rem; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--gold);
+      background: var(--gold-bg);
+      border: 1px solid var(--gold-border);
+      padding: .28rem .8rem; border-radius: 30px;
+      margin-bottom: 1.5rem;
+    }
+    .hero-pill-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--gold);
+    }
+    .hero h1 {
+      font-size: 3.6rem; font-weight: 800;
+      line-height: 1.04; letter-spacing: -.05em;
+      margin-bottom: 1.3rem;
+    }
+    .hero h1 span { color: var(--gold); }
+    .hero-sub {
+      font-size: 1.02rem; color: var(--text2);
+      line-height: 1.72; max-width: 420px;
+      margin-bottom: 2.2rem; font-weight: 400;
+    }
+    .hero-actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+    .btn-dark {
+      background: var(--text); color: #fff;
+      font-weight: 650; font-size: .88rem;
+      padding: .72rem 1.5rem; border-radius: 10px;
+      display: inline-flex; align-items: center; gap: .4rem;
+      transition: opacity .15s;
+    }
+    .btn-dark:hover { opacity: .8; }
+    .btn-light {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border2);
+      font-size: .88rem; font-weight: 500;
+      padding: .72rem 1.5rem; border-radius: 10px;
+      display: inline-block; transition: all .15s;
+    }
+    .btn-light:hover { border-color: var(--text); }
+
+    /* ───────────── IPHONE MOCKUP ───────────── */
+    .iphone-col {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 1rem;
+    }
+    .iphone-wrap { position: relative; }
+    .iphone-glow {
+      position: absolute; top: 48%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px; height: 460px;
+      background: radial-gradient(ellipse, rgba(184,148,79,.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .iphone {
+      width: 252px;
+      background: #fafafa;
+      border-radius: 44px;
+      border: 3.5px solid #e2dfda;
+      box-shadow:
+        0 0 0 .5px rgba(0,0,0,.06),
+        0 30px 80px rgba(0,0,0,.07),
+        0 8px 24px rgba(0,0,0,.04),
+        inset 0 0 0 .5px rgba(255,255,255,.95);
+      overflow: hidden;
+      position: relative; z-index: 2;
+    }
+    .iphone-island {
+      height: 30px; background: #fafafa;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .iphone-island::after {
+      content: '';
+      width: 86px; height: 22px;
+      background: #1a1a1a;
+      border-radius: 20px;
+      position: absolute; top: 7px;
+    }
+    .iphone-screen {
+      height: 490px; overflow: hidden;
+      position: relative; background: #f5f4f2;
+    }
+    .iphone-screen iframe {
+      width: 375px; height: 812px;
+      border: none;
+      transform: scale(0.644);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* iOS NFC banner from Dynamic Island */
+    .nfc-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 12;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      transform: translateY(0) scale(.86);
+      transform-origin: top center;
+      opacity: 0;
+      transition: transform .48s cubic-bezier(.22,1,.36,1), opacity .18s ease;
+    }
+    .nfc-overlay.show {
+      transform: translateY(28px) scale(1);
+      opacity: 1;
+    }
+    .nfc-banner {
+      background: rgba(18,18,18,.96);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 24px;
+      padding: .42rem .82rem .42rem .56rem;
+      display: flex;
+      align-items: center;
+      gap: .48rem;
+      box-shadow: 0 10px 36px rgba(0,0,0,.34);
+      border: 1px solid rgba(255,255,255,.08);
+      max-width: 224px;
+    }
+    .nfc-banner-icon {
+      width: 28px; height: 28px;
+      background: #30d158;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .nfc-banner-icon svg { width: 14px; height: 14px; stroke: #fff; fill: none; }
+    .nfc-banner-body {
+      display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
+    }
+    .nfc-banner-title {
+      font-size: .58rem; font-weight: 700; color: #fff;
+      letter-spacing: -.01em; white-space: nowrap;
+    }
+    .nfc-banner-sub {
+      font-size: .48rem; color: rgba(255,255,255,.45);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .nfc-banner-check {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #30d158;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .nfc-banner-check svg { width: 9px; height: 9px; stroke: #fff; fill: none; }
+
+    .iphone-home {
+      height: 18px; background: #fafafa;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .iphone-home::after {
+      content: '';
+      width: 80px; height: 4px;
+      background: #ccc; border-radius: 4px;
+    }
+
+    /* NFC Card */
+    .nfc-card-demo {
+      position: absolute;
+      bottom: -12px; right: -28px; z-index: 3;
+      width: 150px; height: 95px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #2a2a2a, #181818);
+      box-shadow:
+        0 10px 32px rgba(0,0,0,.15),
+        0 0 0 .5px rgba(255,255,255,.06);
+      transform: rotate(6deg);
+      animation: card-idle 3.5s ease-in-out infinite;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: .55rem .7rem;
+      overflow: hidden;
+    }
+    .nfc-card-demo::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.09), transparent 55%);
+      border-radius: 12px;
+    }
+    .nfc-card-demo.tapping {
+      animation: card-tap 2.6s ease-in-out forwards;
+    }
+    @keyframes card-idle {
+      0%, 100% { transform: rotate(6deg) translateY(0); }
+      50% { transform: rotate(6deg) translateY(-4px); }
+    }
+    @keyframes card-tap {
+      0%   { transform: rotate(6deg) translate3d(0, 0, 0) scale(1); }
+      40%  { transform: rotate(-2deg) translate3d(-30px, -510px, 0) scale(1.02); }
+      48%  { transform: rotate(-2deg) translate3d(-30px, -510px, 0) scale(1.02); }
+      100% { transform: rotate(6deg) translate3d(0, 0, 0) scale(1); }
+    }
+    .card-top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start;
+    }
+    .card-brand {
+      font-size: .42rem; font-weight: 900;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--gold-light);
+      position: relative; z-index: 1;
+    }
+    .card-chip {
+      width: 14px; height: 10px;
+      border-radius: 2px;
+      background: linear-gradient(135deg, #e7c35e, #c9993a);
+      position: relative; z-index: 1;
+    }
+    .card-bottom { position: relative; z-index: 1; }
+    .card-name {
+      font-size: .5rem; font-weight: 700;
+      color: #f0ede8; letter-spacing: -.01em;
+    }
+    .card-title {
+      font-size: .38rem; color: rgba(255,255,255,.4);
+      margin-top: 1px;
+    }
+    .card-nfc-mark {
+      position: absolute; bottom: .4rem; right: .55rem;
+      font-size: .35rem; font-weight: 800;
+      letter-spacing: .12em; color: rgba(255,255,255,.15);
+      z-index: 1;
+    }
+    .demo-label {
+      font-size: .58rem; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--subtle);
+    }
+
+    /* ───────────── TRUST BAR ───────────── */
+    .trust-bar {
+      display: flex; justify-content: center; gap: 3rem;
+      padding: 1.5rem 0 3.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .trust-item {
+      display: flex; flex-direction: column;
+      align-items: center; gap: .15rem;
+    }
+    .trust-item strong {
+      font-size: 1.2rem; font-weight: 800;
+      letter-spacing: -.04em;
+    }
+    .trust-item span {
+      font-size: .65rem; color: var(--muted); font-weight: 500;
+    }
+
+    /* ───────────── SECTIONS ───────────── */
+    .section { padding: 5rem 0; }
+    .section-tag {
+      font-size: .58rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: .6rem;
+    }
+    .section-title {
+      font-size: 2rem; font-weight: 750;
+      letter-spacing: -.04em; line-height: 1.15;
+      margin-bottom: .5rem;
+    }
+    .section-sub {
+      font-size: .9rem; color: var(--text2);
+      max-width: 440px; line-height: 1.7;
+      margin-bottom: 2.5rem;
+    }
+
+    /* ───────────── STEPS ───────────── */
+    .steps {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 1.5rem;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .step-card:hover {
+      box-shadow: 0 8px 30px rgba(0,0,0,.035);
+      border-color: var(--border2);
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--gold-bg); border: 1px solid var(--gold-border);
+      font-size: .65rem; font-weight: 800; color: var(--gold);
+      margin-bottom: 1rem;
+    }
+    .step-card h3 {
+      font-size: .92rem; font-weight: 650;
+      letter-spacing: -.02em; margin-bottom: .35rem;
+    }
+    .step-card p {
+      font-size: .8rem; color: var(--text2); line-height: 1.65;
+    }
+
+    /* ───────────── FEATURES ───────────── */
+    .features {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .feature:hover {
+      box-shadow: 0 6px 24px rgba(0,0,0,.03);
+      border-color: var(--border2);
+    }
+    .feature-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--gold-bg); border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--gold);
+    }
+    .feature h3 {
+      font-size: .85rem; font-weight: 650;
+      letter-spacing: -.02em; margin-bottom: .18rem;
+    }
+    .feature p {
+      font-size: .78rem; color: var(--text2); line-height: 1.6;
+    }
+
+    /* ───────────── PRICING ───────────── */
+    .pricing {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .price-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.5rem;
+      display: flex; flex-direction: column; gap: 1rem;
+      position: relative;
+      transition: box-shadow .2s;
+    }
+    .price-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,.04); }
+    .price-card.pop {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px var(--gold), 0 12px 40px rgba(184,148,79,.06);
+    }
+    .pop-badge {
+      position: absolute; top: -10px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--gold); color: #fff;
+      font-size: .52rem; font-weight: 750;
+      letter-spacing: .06em; text-transform: uppercase;
+      padding: .18rem .6rem; border-radius: 20px;
+      white-space: nowrap;
+    }
+    .price-tier {
+      font-size: .6rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .price-amount {
+      font-size: 1.7rem; font-weight: 800;
+      letter-spacing: -.04em; line-height: 1;
+    }
+    .price-amount sub {
+      font-size: .68rem; font-weight: 400;
+      color: var(--muted); vertical-align: baseline;
+    }
+    .price-desc {
+      font-size: .78rem; color: var(--text2); line-height: 1.55;
+    }
+    .price-old {
+      font-size: .72rem; color: #aaa; text-decoration: line-through; margin: -.1rem 0 .5rem;
+    }
+    .price-list {
+      list-style: none;
+      display: flex; flex-direction: column; gap: .3rem;
+      flex: 1;
+    }
+    .price-list li {
+      font-size: .78rem; color: var(--text2);
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .price-list li::before {
+      content: '';
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--gold); flex-shrink: 0;
+    }
+    .price-btn {
+      display: block; text-align: center;
+      padding: .58rem .8rem; border-radius: 10px;
+      font-size: .82rem; font-weight: 600;
+      transition: all .15s;
+    }
+    .price-btn:hover { opacity: .85; }
+    .price-btn.fill { background: var(--text); color: #fff; }
+    .price-btn.line { border: 1px solid var(--border2); color: var(--text); }
+    .price-btn.line:hover { border-color: var(--text); }
+
+    /* ───────────── CTA ───────────── */
+    .cta-section { text-align: center; padding: 4rem 2rem 5rem; }
+    .cta-box {
+      background: var(--text); color: #fff;
+      border-radius: 24px;
+      padding: 4rem 3rem;
+      max-width: 620px; margin: 0 auto;
+    }
+    .cta-box h2 {
+      font-size: 1.8rem; font-weight: 750;
+      letter-spacing: -.04em; margin-bottom: .5rem;
+    }
+    .cta-box p {
+      font-size: .88rem; color: rgba(255,255,255,.55);
+      margin-bottom: 1.6rem;
+    }
+    .cta-btn {
+      background: var(--gold); color: #000;
+      font-size: .88rem; font-weight: 700;
+      padding: .72rem 1.8rem; border-radius: 10px;
+      display: inline-block; transition: opacity .15s;
+    }
+    .cta-btn:hover { opacity: .85; }
+
+    /* ───────────── FOOTER ───────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      max-width: var(--max); margin: 0 auto;
+      padding: 1.8rem 2rem;
+      display: flex; justify-content: space-between;
+      align-items: center;
+      font-size: .7rem; color: var(--muted);
+    }
+    .footer-logo {
+      display: flex; align-items: center; gap: .4rem;
+      font-weight: 750; font-size: .82rem; color: var(--text);
+    }
+    .footer-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--gold);
+    }
+    .footer-links {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .72rem; color: var(--muted);
+    }
+    .footer-links a { transition: color .15s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ───────────── FAQ ───────────── */
+    .faq-list {
+      display: flex; flex-direction: column; gap: .5rem;
+      max-width: 640px;
+    }
+    .faq-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .faq-item[open] { border-color: var(--border2); }
+    .faq-item summary {
+      font-size: .88rem; font-weight: 600;
+      padding: 1rem 1.2rem;
+      cursor: pointer;
+      list-style: none;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after {
+      content: '+'; font-size: 1.2rem; font-weight: 400;
+      color: var(--muted); transition: transform .2s;
+    }
+    .faq-item[open] summary::after { content: '−'; }
+    .faq-item p {
+      font-size: .82rem; color: var(--text2);
+      line-height: 1.7; padding: 0 1.2rem 1rem;
+    }
+
+    /* ───────────── RESPONSIVE ───────────── */
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; gap: 3rem; padding: 4.5rem 0 3.5rem; }
+      .iphone-col { order: -1; }
+      .hero h1 { font-size: 2.5rem; }
+      .steps { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr; }
+      .pricing { grid-template-columns: repeat(2, 1fr); }
+      .trust-bar { gap: 1.8rem; }
+    }
+    @media (max-width: 600px) {
+      .nav-inner { padding: 0 1rem; }
+      .nav-links { display: none; }
+      .nav-burger { display: flex; }
+      .wrap { padding: 0 1rem; }
+      .pricing { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2rem; }
+      .trust-bar { flex-wrap: wrap; gap: 1.2rem; }
+      .trust-item strong { font-size: 1rem; }
+      .cta-box { padding: 2.5rem 1.5rem; }
+      footer { flex-direction: column; gap: .8rem; text-align: center; }
+      .whatsapp-float { bottom: 1rem; right: 1rem; width: 50px; height: 50px; }
+      .whatsapp-float svg { width: 24px; height: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <img src="tekko-logo.png" alt="TEKKO" />
+    </div>
+    <div class="nav-links">
+      <a href="#comment">Comment ça marche</a>
+      <a href="#avantages">Avantages</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a href="https://tapal.geochifa.com" class="nav-cta">Créer ma carte</a>
+    <button class="nav-burger" id="burger" aria-label="Menu"><span></span></button>
+  </div>
+</nav>
+<div class="nav-mobile-menu" id="mobile-menu">
+  <a href="#comment">Comment ça marche</a>
+  <a href="#avantages">Avantages</a>
+  <a href="#tarifs">Tarifs</a>
+  <a href="#faq">FAQ</a>
+  <a href="https://tapal.geochifa.com" style="color:var(--gold);font-weight:700;">Créer ma carte →</a>
+</div>
+
+<!-- HERO -->
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="hero-pill">
+        <span class="hero-pill-dot"></span>
+        Dakar, Sénégal
+      </div>
+      <h1>La carte de visite<br>qui <span>marque</span><br>les esprits.</h1>
+      <p class="hero-sub">
+        Une carte physique premium. Un tap NFC. Ton profil complet
+        s'affiche instantanément sur n'importe quel smartphone.
+        Sans application.
+      </p>
+      <div class="hero-actions">
+        <a href="https://tapal.geochifa.com" class="btn-dark">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Créer ma carte
+        </a>
+        <a href="#comment" class="btn-light">Comment ça marche</a>
+      </div>
+    </div>
+
+    <div class="iphone-col">
+      <div class="iphone-wrap">
+        <div class="iphone-glow"></div>
+        <div class="nfc-overlay" id="nfc-overlay">
+          <div class="nfc-banner">
+            <div class="nfc-banner-icon">
+              <svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                <line x1="12" y1="20" x2="12.01" y2="20"/>
+              </svg>
+            </div>
+            <div class="nfc-banner-body">
+              <span class="nfc-banner-title">Lecture NFC</span>
+              <span class="nfc-banner-sub">tapal.geochifa.com</span>
+            </div>
+            <div class="nfc-banner-check">
+              <svg viewBox="0 0 24 24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="iphone">
+          <div class="iphone-island"></div>
+          <div class="iphone-screen" id="screen">
+            <iframe id="demo-frame" src="https://bamba.geochifa.com" title="Démo" loading="lazy" scrolling="no"></iframe>
+          </div>
+          <div class="iphone-home"></div>
+        </div>
+        <div class="nfc-card-demo" id="demo-card">
+          <div class="card-top">
+            <span class="card-brand">TEKKO</span>
+            <div class="card-chip"></div>
+          </div>
+          <div class="card-bottom">
+            <div class="card-name">Bamba Diop</div>
+            <div class="card-title">Directeur Commercial</div>
+          </div>
+          <span class="card-nfc-mark">NFC</span>
+        </div>
+      </div>
+      <span class="demo-label">Démo live</span>
+    </div>
+  </div>
+</div>
+
+<!-- TRUST -->
+<div class="wrap">
+  <div class="trust-bar">
+    <div class="trust-item"><strong>1 tap</strong><span>Pour partager</span></div>
+    <div class="trust-item"><strong>NFC + QR</strong><span>Tout smartphone</span></div>
+    <div class="trust-item"><strong>48h</strong><span>Livraison Dakar</span></div>
+    <div class="trust-item"><strong>100%</strong><span>Personnalisable</span></div>
+  </div>
+</div>
+
+<!-- HOW -->
+<div class="wrap">
+  <div class="section" id="comment">
+    <div class="section-tag">Comment ça marche</div>
+    <div class="section-title">Trois étapes.</div>
+    <div class="section-sub">De la commande à la rencontre qui compte.</div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Personnalise ta carte</h3>
+        <p>Choisis la matière, la dorure, les finitions. Remplis ton profil avec tes liens, ta bio, tes coordonnées.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>On la produit</h3>
+        <p>Notre atelier imprime et programme ta carte NFC. Chaque pièce est testée avant expédition.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Tu tapes, l'autre reçoit</h3>
+        <p>Un tap sur n'importe quel smartphone. Ton profil s'ouvre instantanément. Sans app, sans friction.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="wrap">
+  <div class="section" id="avantages">
+    <div class="section-tag">Avantages</div>
+    <div class="section-title">Pourquoi TEKKO.</div>
+    <div class="section-sub">Tout ce qu'une carte papier ne fait pas.</div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div>
+          <h3>Design sur mesure</h3>
+          <p>PVC soft touch, métal brossé, dorure or, argent ou cuivre. Chaque carte est unique.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+        </div>
+        <div>
+          <h3>Compatible tous smartphones</h3>
+          <p>NFC natif sur iPhone et Android. QR code au verso en fallback. Aucune app requise.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div>
+          <h3>Modifiable à tout moment</h3>
+          <p>Tes liens, ta photo, ta bio. Mets tout à jour quand tu veux, sans refaire de carte.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <h3>Packs entreprise</h3>
+          <p>Équipes de 5 à 500 cartes. Identité commune, gestion centralisée, support dédié.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        </div>
+        <div>
+          <h3>Galerie souvenirs privée</h3>
+          <p>Après l'événement, un tap ouvre une galerie photo privée, une vidéo récapitulative ou un livre d'or numérique pour prolonger l'expérience.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+        </div>
+        <div>
+          <h3>Catalogue de ressources</h3>
+          <p>Idéal pour séminaires et formations: la carte donne accès aux supports, fiches techniques, liens utiles et documents mis à jour même après l'événement.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="wrap">
+  <div class="section" id="tarifs">
+    <div class="section-tag">Tarifs</div>
+    <div class="section-title">Transparent.</div>
+    <div class="section-sub">Livraison partout au Sénégal. Paiement sécurisé.</div>
+    <div class="pricing">
+      <div class="price-card">
+        <div class="price-tier">Starter</div>
+        <div class="price-amount">15 000 <sub>FCFA</sub></div>
+        <div class="price-desc">Une carte NFC propre et efficace pour commencer.</div>
+        <ul class="price-list">
+          <li>1 carte NFC PVC soft touch</li>
+          <li>Profil digital personnalisé</li>
+          <li>QR code au verso</li>
+          <li>Livraison sous 72h</li>
+        </ul>
+        <a href="https://tapal.geochifa.com" class="price-btn line">Commander</a>
+      </div>
+      <div class="price-card pop">
+        <div class="pop-badge">Populaire</div>
+        <div class="price-tier">Pro</div>
+        <div class="price-amount">22 500 <sub>FCFA</sub></div>
+        <div class="price-desc">La carte qui fait la différence en rendez-vous.</div>
+        <ul class="price-list">
+          <li>1 carte PVC premium ou métal</li>
+          <li>Dorure au choix</li>
+          <li>Design sur mesure</li>
+          <li>Profil digital complet</li>
+          <li>Livraison 48h</li>
+        </ul>
+        <a href="https://tapal.geochifa.com" class="price-btn fill">Commander</a>
+      </div>
+      <div class="price-card">
+        <div class="pop-badge" style="background:#1dc1ec;">Pack équipe</div>
+        <div class="price-tier">Business</div>
+        <div class="price-amount">60 000 <sub>FCFA</sub></div>
+        <div class="price-desc">5 cartes NFC avec un domaine partagé pour toute l'équipe.</div>
+        <ul class="price-list">
+          <li>5 cartes NFC premium</li>
+          <li>Domaine commun partagé <strong>–20%</strong></li>
+          <li>Dashboard équipe</li>
+          <li>Galerie souvenirs privée ou livre d'or numérique</li>
+          <li>Catalogue de ressources et documents à distance</li>
+          <li>Support prioritaire</li>
+          <li>Livraison sous 5 jours</li>
+        </ul>
+        <a href="https://tapal.geochifa.com" class="price-btn line">Commander</a>
+      </div>
+      <div class="price-card">
+        <div class="pop-badge" style="background:#e85d26;">Sur commande</div>
+        <div class="price-tier">Ceremonies</div>
+        <div class="price-amount">Sur devis</div>
+        <div class="price-desc">Mariages, galas, séminaires, formations. Une expérience NFC sur mesure pour vos événements.</div>
+        <ul class="price-list">
+          <li>Cartes NFC personnalisées aux couleurs de l'événement</li>
+          <li>Galerie photos et souvenirs numériques</li>
+          <li>Vidéo récapitulative et livre d'or digital</li>
+          <li>Catalogue de ressources et documents</li>
+          <li>Mise à jour à distance après l'événement</li>
+          <li>Accompagnement dédié de A à Z</li>
+        </ul>
+        <a href="https://tapal.geochifa.com/ceremonies" class="price-btn fill" style="background:#e85d26;">Demander un devis</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="wrap">
+  <div class="section" id="faq">
+    <div class="section-tag">Questions fréquentes</div>
+    <div class="section-title">On répond.</div>
+    <div class="section-sub">L'essentiel en quelques clics.</div>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>Est-ce que ça marche avec tous les téléphones ?</summary>
+        <p>Oui. La carte utilise la technologie NFC, compatible avec tous les iPhone (XR et plus récents) et la plupart des Android. Un QR code au verso permet aussi de scanner sans NFC.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Faut-il installer une application ?</summary>
+        <p>Non. Aucune application requise. Le profil s'ouvre directement dans le navigateur du téléphone, en un tap ou un scan.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Puis-je modifier mon profil après la commande ?</summary>
+        <p>Oui, vos informations (photo, bio, liens, coordonnées) sont modifiables à tout moment sans avoir besoin de refaire la carte.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Quel est le délai de livraison ?</summary>
+        <p>48h à Dakar, 2 à 5 jours ouvrés dans le reste du Sénégal. Livraison internationale sous 1 à 4 semaines.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Comment payer ?</summary>
+        <p>Le paiement se fait via Wave de manière sécurisée. Vous recevez un reçu par email avec votre carte digitale.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="wrap">
+  <div class="cta-section">
+    <div class="cta-box">
+      <h2>Prêt à remplacer le papier ?</h2>
+      <p>Rejoins les professionnels qui networkent avec une carte TEKKO.</p>
+      <a href="https://tapal.geochifa.com" class="cta-btn">Créer ma carte</a>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <img src="tekko-logo.png" alt="TEKKO" style="height:28px;width:auto;" />
+  </div>
+  <div class="footer-links">
+    <a href="https://wa.me/221776585371" target="_blank" rel="noreferrer">WhatsApp</a>
+    <span>·</span>
+    <a href="mailto:cheikhabgn@gmail.com">Email</a>
+    <span>·</span>
+    <span>Dakar, Sénégal</span>
+  </div>
+</footer>
+
+<!-- WhatsApp floating button -->
+<a class="whatsapp-float" href="https://wa.me/221776585371" target="_blank" rel="noreferrer" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.85L.073 23.928a.5.5 0 0 0 .611.611l6.181-1.462A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.808 9.808 0 0 1-5.032-1.384l-.36-.214-3.732.882.897-3.63-.236-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/></svg>
+</a>
+
+<script>
+(function() {
+  // Mobile menu
+  var burger = document.getElementById('burger');
+  var mobileMenu = document.getElementById('mobile-menu');
+  if (burger && mobileMenu) {
+    burger.addEventListener('click', function() {
+      mobileMenu.classList.toggle('open');
+    });
+    mobileMenu.addEventListener('click', function(e) {
+      if (e.target.tagName === 'A') mobileMenu.classList.remove('open');
+    });
+  }
+
+  var frame = document.getElementById('demo-frame');
+  var card = document.getElementById('demo-card');
+  var overlay = document.getElementById('nfc-overlay');
+  var screen = document.getElementById('screen');
+
+  function runNfcFlow() {
+    // Card taps phone
+    card.classList.add('tapping');
+    card.addEventListener('animationend', function handler() {
+      card.removeEventListener('animationend', handler);
+      card.classList.remove('tapping');
+    });
+
+    // Show iOS NFC banner when card reaches the top sensor area
+    setTimeout(function() {
+      overlay.classList.add('show');
+    }, 1120);
+
+    // Hide banner
+    setTimeout(function() {
+      overlay.classList.remove('show');
+    }, 2520);
+
+    // Reload iframe after card returns
+    setTimeout(function() {
+      if (frame && screen) {
+        screen.style.transition = 'opacity .25s';
+        screen.style.opacity = '0';
+        setTimeout(function() {
+          frame.src = frame.src;
+          screen.style.opacity = '1';
+        }, 280);
+      }
+    }, 3000);
+  }
+
+  setTimeout(function() {
+    runNfcFlow();
+    setInterval(runNfcFlow, 15000);
+  }, 2500);
+})();
+</script>
+
+</body>
+</html>

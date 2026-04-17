@@ -1,0 +1,49 @@
+import { useEffect } from 'react';
+import { BuilderView } from './views/BuilderView';
+import { AdminView } from './views/AdminView';
+import { CeremonyView } from './views/CeremonyView';
+import { PaymentStateView } from './views/PaymentStateView';
+import { PublicCardView } from './views/PublicCardView';
+
+function App() {
+  const currentPath = window.location.pathname;
+  const searchParams = new URLSearchParams(window.location.search);
+  const paymentParam = searchParams.get('payment');
+
+  useEffect(() => {
+    if (currentPath.startsWith('/admin')) {
+      document.title = 'Tekko · Admin';
+    } else if (currentPath.startsWith('/payment/')) {
+      document.title = 'Paiement · Tapal';
+    } else if (!currentPath.startsWith('/c/')) {
+      document.title = 'Tapal Studio';
+    }
+    // PublicCardView sets its own title when the card loads
+  }, [currentPath]);
+
+  if (currentPath.startsWith('/admin')) {
+    return <AdminView />;
+  }
+
+  if (currentPath.startsWith('/payment/success') || paymentParam === 'success') {
+    return <PaymentStateView variant="success" />;
+  }
+
+  if (currentPath.startsWith('/payment/cancel') || paymentParam === 'cancel' || paymentParam === 'error') {
+    return <PaymentStateView variant="cancel" />;
+  }
+
+  if (currentPath.startsWith('/c/')) {
+    const slug = currentPath.replace('/c/', '').split('/')[0];
+    return <PublicCardView slug={slug} />;
+  }
+
+  if (currentPath.startsWith('/ceremonies')) {
+    document.title = 'Ceremonies - TEKKO';
+    return <CeremonyView />;
+  }
+
+  return <BuilderView />;
+}
+
+export default App;

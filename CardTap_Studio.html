@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CardTap Studio — Créez votre carte NFC</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F7F4EE;
+  --card:#FFFFFF;
+  --dark:#111108;
+  --forest:#1A5C35;
+  --emerald:#1E9B5F;
+  --gold:#C8922A;
+  --gold-light:#F0C46A;
+  --muted:#6B7566;
+  --border:#E0DAD0;
+  --border2:#C8C0B4;
+  --text:#1A1A14;
+  --radius:14px;
+  --r-sm:8px;
+}
+
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.5;min-height:100vh}
+
+/* ── NAV ── */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(247,244,238,0.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:56px;
+}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{
+  width:30px;height:30px;
+  background:var(--dark);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+}
+.nav-logo span{font-family:'Space Mono',monospace;font-size:11px;color:var(--gold);font-weight:700}
+.nav-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--dark)}
+.nav-steps{display:flex;gap:4px}
+.nav-step{
+  padding:5px 12px;border-radius:100px;
+  font-size:12px;font-weight:500;cursor:pointer;
+  color:var(--muted);transition:all .2s;
+  border:1px solid transparent;
+}
+.nav-step.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+.nav-step.done{color:var(--emerald);border-color:var(--emerald)}
+.nav-cta{
+  background:var(--gold);color:var(--dark);
+  font-weight:600;font-size:13px;
+  padding:8px 18px;border-radius:100px;
+  border:none;cursor:pointer;transition:opacity .2s;
+  font-family:'DM Sans',sans-serif;
+}
+.nav-cta:hover{opacity:0.88}
+
+/* ── LAYOUT ── */
+.studio{display:grid;grid-template-columns:400px 1fr;min-height:calc(100vh - 56px)}
+
+/* ── LEFT PANEL ── */
+.panel{
+  background:var(--card);
+  border-right:1px solid var(--border);
+  overflow-y:auto;
+  position:sticky;top:56px;
+  height:calc(100vh - 56px);
+  padding:28px 24px 80px;
+  display:flex;flex-direction:column;gap:32px;
+}
+.panel::-webkit-scrollbar{width:4px}
+.panel::-webkit-scrollbar-track{background:transparent}
+.panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+.section-tag{
+  font-family:'Space Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--gold);font-weight:700;margin-bottom:6px;
+}
+.section-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--dark);margin-bottom:14px}
+
+/* Form elements */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.3px}
+.field input,.field textarea,.field select{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:9px 12px;
+  font-family:'DM Sans',sans-serif;font-size:14px;color:var(--dark);
+  outline:none;transition:border-color .2s,box-shadow .2s;
+  width:100%;
+}
+.field input:focus,.field textarea:focus,.field select:focus{
+  border-color:var(--forest);
+  box-shadow:0 0 0 3px rgba(30,155,95,0.1);
+}
+.field textarea{resize:none;min-height:72px;line-height:1.5}
+.field select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7566' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Prompt area */
+.prompt-wrap{position:relative}
+.prompt-wrap textarea{padding-right:40px}
+.prompt-icon{
+  position:absolute;right:10px;top:10px;
+  width:24px;height:24px;border-radius:6px;
+  background:var(--gold);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:none;
+}
+.prompt-icon svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* Auto-style badge */
+.auto-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--dark);color:var(--gold-light);
+  font-family:'Space Mono',monospace;font-size:10px;
+  padding:5px 10px;border-radius:6px;cursor:pointer;
+  border:none;font-weight:700;letter-spacing:.5px;
+  transition:opacity .2s;width:100%;justify-content:center;margin-top:8px;
+}
+.auto-badge:hover{opacity:.85}
+.auto-badge svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+.prompt-result{
+  display:none;background:var(--dark);border-radius:var(--r-sm);
+  padding:12px;margin-top:10px;
+}
+.prompt-result.visible{display:block}
+.pr-direction{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.pr-desc{font-size:12px;color:#B8C0B4;margin-bottom:10px}
+.pr-tags{display:flex;gap:6px;flex-wrap:wrap}
+.pr-tag{
+  background:rgba(255,255,255,0.08);color:#C8C0B4;
+  font-size:11px;padding:4px 10px;border-radius:100px;
+  cursor:pointer;border:1px solid rgba(255,255,255,0.12);transition:all .15s;
+}
+.pr-tag.selected{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+
+/* Style cards */
+.style-grid{display:flex;flex-direction:column;gap:8px}
+.style-card{
+  display:flex;align-items:center;gap:12px;
+  border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;cursor:pointer;transition:all .2s;
+  background:var(--bg);
+}
+.style-card:hover{border-color:var(--border2);background:#F0EDE6}
+.style-card.selected{border-color:var(--dark);background:var(--dark)}
+.style-card.selected .sc-name{color:#fff}
+.style-card.selected .sc-desc{color:#888}
+.sc-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.sc-info{flex:1}
+.sc-name{font-size:13px;font-weight:600;color:var(--dark)}
+.sc-desc{font-size:11px;color:var(--muted);margin-top:1px}
+.sc-preview{
+  width:48px;height:30px;border-radius:6px;overflow:hidden;flex-shrink:0;
+}
+
+/* Image customization */
+.image-option{
+  border:1.5px dashed var(--border2);border-radius:var(--radius);
+  padding:16px;text-align:center;cursor:pointer;transition:all .2s;
+  background:var(--bg);
+}
+.image-option:hover{border-color:var(--emerald);background:rgba(30,155,95,0.04)}
+.image-option svg{width:22px;height:22px;stroke:var(--muted);fill:none;stroke-width:1.5;margin-bottom:6px}
+.image-option p{font-size:12px;color:var(--muted);font-weight:500}
+.image-option small{font-size:10.5px;color:#9A9A8A;display:block;margin-top:2px}
+
+.image-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+
+.or-divider{display:flex;align-items:center;gap:8px;margin:10px 0}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.or-divider span{font-size:11px;color:var(--muted)}
+
+/* Bamba decides option */
+.bamba-option{
+  border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:14px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+  transition:all .2s;background:var(--bg);
+}
+.bamba-option:hover{border-color:var(--gold);background:rgba(200,146,42,0.04)}
+.bamba-option.selected{border-color:var(--gold);background:rgba(200,146,42,0.06)}
+.bamba-avatar{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-family:'Space Mono',monospace;font-size:11px;color:var(--gold);font-weight:700;
+}
+.bamba-text strong{display:block;font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px}
+.bamba-text span{font-size:11.5px;color:var(--muted);line-height:1.4}
+
+/* Toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:13px;color:var(--dark);font-weight:500}
+.toggle-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{
+  position:absolute;inset:0;border-radius:100px;
+  background:var(--border2);cursor:pointer;transition:background .2s;
+}
+.toggle-slider::before{
+  content:'';position:absolute;
+  width:16px;height:16px;border-radius:50%;
+  background:white;bottom:3px;left:3px;
+  transition:transform .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle input:checked + .toggle-slider{background:var(--emerald)}
+.toggle input:checked + .toggle-slider::before{transform:translateX(18px)}
+
+/* Color picker */
+.color-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.color-swatch{
+  width:28px;height:28px;border-radius:6px;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;
+  position:relative;
+}
+.color-swatch.selected::after{
+  content:'';position:absolute;inset:-3px;
+  border:2px solid var(--dark);border-radius:8px;
+}
+.custom-color-input{
+  width:28px;height:28px;border-radius:6px;cursor:pointer;
+  border:1.5px solid var(--border2);overflow:hidden;padding:0;
+}
+
+/* Material tags */
+.tag-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{
+  padding:6px 13px;border-radius:100px;
+  font-size:12px;font-weight:500;cursor:pointer;
+  border:1.5px solid var(--border2);background:var(--bg);color:var(--dark);
+  transition:all .2s;
+}
+.tag:hover{border-color:var(--dark)}
+.tag.selected{background:var(--dark);color:#fff;border-color:var(--dark)}
+
+/* Order summary */
+.order-box{
+  background:var(--dark);border-radius:var(--radius);
+  padding:18px;
+}
+.order-line{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);
+  font-size:13px;color:#C8C0B4;
+}
+.order-line:last-child{border-bottom:none}
+.order-line strong{color:#fff;font-weight:600}
+.order-total{
+  background:var(--gold);border-radius:var(--radius);
+  padding:14px 18px;display:flex;justify-content:space-between;align-items:center;
+  margin-top:10px;
+}
+.order-total span{font-size:14px;font-weight:600;color:var(--dark)}
+.order-total strong{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--dark)}
+
+.btn-order{
+  width:100%;padding:14px;
+  background:var(--emerald);color:#fff;
+  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;
+  border:none;border-radius:100px;cursor:pointer;
+  transition:opacity .2s,transform .1s;margin-top:12px;letter-spacing:.3px;
+}
+.btn-order:hover{opacity:.9}
+.btn-order:active{transform:scale(.98)}
+
+.btn-copy{
+  width:100%;padding:11px;
+  background:transparent;color:var(--muted);
+  font-size:13px;font-weight:500;
+  border:1.5px solid var(--border2);border-radius:100px;cursor:pointer;
+  transition:all .2s;margin-top:8px;font-family:'DM Sans',sans-serif;
+}
+.btn-copy:hover{border-color:var(--dark);color:var(--dark)}
+
+/* ── RIGHT: PREVIEW ── */
+.preview-pane{
+  background:#0F0F0A;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:40px 32px;gap:40px;
+  position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;
+}
+.preview-label{
+  font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:6px;text-align:center;
+}
+.preview-caption{font-size:13px;color:#666;text-align:center;max-width:340px;line-height:1.5}
+
+/* Phone mockup */
+.phone-wrap{position:relative;width:260px}
+.phone-outer{
+  background:#1A1A14;border-radius:36px;padding:3px;
+  border:1px solid #333;
+  box-shadow:0 0 0 1px #111, 0 32px 64px rgba(0,0,0,0.8), 0 0 60px rgba(30,155,95,0.04);
+}
+.phone-screen{
+  background:#0A0A06;border-radius:34px;
+  overflow:hidden;min-height:480px;
+  position:relative;
+}
+.phone-notch{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:90px;height:28px;background:#1A1A14;border-radius:0 0 16px 16px;
+  z-index:10;
+}
+
+/* Digital card inside phone */
+.dcard{
+  padding:24px 18px 18px;
+  min-height:480px;
+  display:flex;flex-direction:column;
+  transition:all .4s ease;
+}
+.dcard-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;margin-top:24px}
+.dcard-avatar{
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-size:16px;font-weight:800;
+  flex-shrink:0;
+}
+.dcard-identity{flex:1}
+.dcard-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;line-height:1.1;margin-bottom:3px}
+.dcard-role{font-size:11.5px;opacity:.7;margin-bottom:2px}
+.dcard-bio{font-size:10.5px;opacity:.55;line-height:1.4}
+.dcard-badge{
+  display:inline-block;font-family:'Space Mono',monospace;font-size:8px;
+  padding:3px 8px;border-radius:100px;margin-bottom:8px;letter-spacing:.5px;
+}
+.dcard-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.dfield{
+  border-radius:10px;padding:8px 10px;
+}
+.dfield-label{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:1px;text-transform:uppercase;opacity:.5;margin-bottom:3px}
+.dfield-val{font-size:11.5px;font-weight:500}
+.dfield.full{grid-column:1/-1}
+.dcard-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.dcard-btn{
+  border:none;cursor:pointer;padding:10px;border-radius:100px;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  transition:opacity .2s;
+}
+
+/* Physical card mockup */
+.pcard-stack{position:relative;width:320px;height:190px;margin-top:10px}
+.pcard{
+  width:320px;height:190px;border-radius:16px;
+  position:absolute;top:0;left:0;overflow:hidden;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.pcard.back{top:14px;left:12px;z-index:0;opacity:.7}
+.pcard.front{z-index:1}
+.pcard-bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+}
+.pcard-overlay{position:absolute;inset:0}
+.pcard-content{position:absolute;inset:0;padding:20px 22px;display:flex;flex-direction:column;justify-content:space-between}
+.pcard-top-row{display:flex;align-items:center;justify-content:space-between}
+.pcard-logo{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;font-weight:700}
+.pcard-chip{
+  width:28px;height:20px;border-radius:4px;
+  background:linear-gradient(135deg,#C8922A,#F0C46A);
+  opacity:.85;
+}
+.pcard-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:800}
+.pcard-role{font-size:10px;opacity:.7;margin-top:2px}
+.pcard-back-content{
+  position:absolute;inset:0;padding:20px 22px;
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;
+}
+.pcard-qr{
+  width:44px;height:44px;background:#fff;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:6px;color:#111;text-align:center;padding:2px;
+}
+.pcard-url{font-family:'Space Mono',monospace;font-size:9px;opacity:.6;margin-top:6px}
+.pcard-slogan{font-family:'Space Mono',monospace;font-size:8px;opacity:.5;position:absolute;left:22px;bottom:20px}
+.pcard-custom-img{
+  position:absolute;inset:0;background-size:cover;background-position:center;
+  opacity:.25;
+  display:none;
+}
+.pcard-custom-img.visible{display:block}
+
+/* Theme definitions */
+.theme-noir .dcard{background:#0A0A06;color:#E8E0D0}
+.theme-noir .dcard-avatar{background:#C8922A;color:#0A0A06}
+.theme-noir .dcard-badge{background:rgba(200,146,42,.15);color:#C8922A}
+.theme-noir .dfield{background:rgba(255,255,255,.05)}
+.theme-noir .dfield-val{color:#E8E0D0}
+.theme-noir .dcard-btn:first-child{background:#C8922A;color:#0A0A06}
+.theme-noir .dcard-btn:last-child{background:rgba(255,255,255,.08);color:#E8E0D0}
+.theme-noir .pcard.front{background:#0A0A06}
+.theme-noir .pcard-content{color:#E8E0D0}
+.theme-noir .pcard-overlay{background:linear-gradient(135deg,rgba(10,10,6,.9),rgba(30,20,0,.7))}
+
+.theme-editorial .dcard{background:#F7F4EE;color:#1A1A14}
+.theme-editorial .dcard-avatar{background:#FF4D2E;color:#fff}
+.theme-editorial .dcard-badge{background:rgba(255,77,46,.1);color:#FF4D2E}
+.theme-editorial .dfield{background:rgba(0,0,0,.05)}
+.theme-editorial .dfield-val{color:#1A1A14}
+.theme-editorial .dcard-btn:first-child{background:#1A1A14;color:#fff}
+.theme-editorial .dcard-btn:last-child{background:rgba(0,0,0,.08);color:#1A1A14}
+.theme-editorial .pcard.front{background:#1A1A14}
+.theme-editorial .pcard-content{color:#F7F4EE}
+.theme-editorial .pcard-overlay{background:linear-gradient(135deg,rgba(26,26,20,.95),rgba(255,77,46,.15))}
+
+.theme-pulse .dcard{background:#050512;color:#E0DCFF}
+.theme-pulse .dcard-avatar{background:#6C63FF;color:#fff}
+.theme-pulse .dcard-badge{background:rgba(108,99,255,.2);color:#9B94FF}
+.theme-pulse .dfield{background:rgba(108,99,255,.08)}
+.theme-pulse .dfield-val{color:#E0DCFF}
+.theme-pulse .dcard-btn:first-child{background:#6C63FF;color:#fff}
+.theme-pulse .dcard-btn:last-child{background:rgba(255,255,255,.06);color:#E0DCFF}
+.theme-pulse .pcard.front{background:#050512}
+.theme-pulse .pcard-content{color:#E0DCFF}
+.theme-pulse .pcard-overlay{background:linear-gradient(135deg,rgba(5,5,18,.9),rgba(108,99,255,.2))}
+
+.theme-teranga .dcard{background:#2C1810;color:#F5E6D0}
+.theme-teranga .dcard-avatar{background:#E8845A;color:#fff}
+.theme-teranga .dcard-badge{background:rgba(232,132,90,.15);color:#E8845A}
+.theme-teranga .dfield{background:rgba(255,255,255,.07)}
+.theme-teranga .dfield-val{color:#F5E6D0}
+.theme-teranga .dcard-btn:first-child{background:#E8845A;color:#fff}
+.theme-teranga .dcard-btn:last-child{background:rgba(255,255,255,.08);color:#F5E6D0}
+.theme-teranga .pcard.front{background:#2C1810}
+.theme-teranga .pcard-content{color:#F5E6D0}
+.theme-teranga .pcard-overlay{background:linear-gradient(135deg,rgba(44,24,16,.9),rgba(232,132,90,.2))}
+
+/* Accordion */
+.accordion{border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.acc-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;cursor:pointer;background:var(--bg);
+  transition:background .15s;
+}
+.acc-header:hover{background:#EEEAE4}
+.acc-title{font-size:13px;font-weight:600;color:var(--dark)}
+.acc-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.acc-arrow{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;transition:transform .2s}
+.acc-body{padding:16px;border-top:1px solid var(--border);display:none}
+.acc-body.open{display:block}
+.acc-arrow.open{transform:rotate(180deg)}
+
+/* Image upload area */
+.upload-zone{
+  border:2px dashed var(--border2);border-radius:var(--radius);
+  padding:24px;text-align:center;cursor:pointer;transition:all .2s;
+  background:var(--bg);
+  display:none;
+}
+.upload-zone.visible{display:block}
+.upload-zone:hover{border-color:var(--gold);background:rgba(200,146,42,.04)}
+.upload-zone input[type=file]{display:none}
+.upload-zone svg{width:28px;height:28px;stroke:var(--gold);fill:none;stroke-width:1.5;margin-bottom:8px}
+.upload-zone p{font-size:13px;color:var(--dark);font-weight:500}
+.upload-zone small{font-size:11px;color:var(--muted)}
+
+.url-input-wrap{display:none}
+.url-input-wrap.visible{display:block}
+
+/* Theme presets miniatures */
+.theme-previews{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.tp{
+  height:52px;border-radius:8px;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:5px;overflow:hidden;position:relative;
+}
+.tp:hover{transform:scale(1.03)}
+.tp.selected{border-color:var(--dark)}
+.tp span{
+  font-family:'Space Mono',monospace;font-size:7px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;position:relative;z-index:1;
+}
+.tp-noir{background:#0A0A06}.tp-noir span{color:#C8922A}
+.tp-editorial{background:#F7F4EE;border-color:#E0DAD0}.tp-editorial span{color:#1A1A14}
+.tp-pulse{background:#050512}.tp-pulse span{color:#9B94FF}
+.tp-teranga{background:#2C1810}.tp-teranga span{color:#E8845A}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--dark);color:#fff;font-size:13px;font-weight:500;padding:10px 20px;
+  border-radius:100px;z-index:200;pointer-events:none;transition:transform .3s ease;
+  font-family:'DM Sans',sans-serif;white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Responsive */
+@media(max-width:860px){
+  .studio{grid-template-columns:1fr}
+  .preview-pane{position:static;height:auto;padding:24px 16px}
+  nav .nav-steps{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo"><span>CT</span></div>
+    <div class="nav-name">CardTap Studio</div>
+  </div>
+  <div class="nav-steps">
+    <div class="nav-step active" data-step="0">Style</div>
+    <div class="nav-step" data-step="1">Identité</div>
+    <div class="nav-step" data-step="2">Carte physique</div>
+    <div class="nav-step" data-step="3">Commande</div>
+  </div>
+  <button class="nav-cta" onclick="scrollToOrder()">Commander →</button>
+</nav>
+
+<div class="studio">
+
+<!-- LEFT PANEL -->
+<div class="panel" id="panel">
+
+  <!-- 0. BAMBA DECIDES -->
+  <div>
+    <div class="section-tag">Option express</div>
+    <div class="section-title">Laisser Bamba décider.</div>
+    <div class="bamba-option" id="bamba-opt" onclick="toggleBamba()">
+      <div class="bamba-avatar">BG</div>
+      <div class="bamba-text">
+        <strong>Mode "Carte Signature"</strong>
+        <span>Je remplis juste mon nom et mes contacts. Bamba crée le design complet pour moi — carte digitale + carte physique assortie.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. CREATIVE PROMPT -->
+  <div>
+    <div class="section-tag">1. Prompt créatif</div>
+    <div class="section-title">Décris l'ambiance en mots.</div>
+    <div class="prompt-wrap">
+      <textarea class="field" id="style-prompt" rows="3" placeholder="Ex: Une carte sombre et dorée pour un directeur fintech qui veut marquer les esprits..." style="padding:10px 40px 10px 12px;resize:none;width:100%"></textarea>
+      <button class="prompt-icon" onclick="applyPrompt()">
+        <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+      </button>
+    </div>
+    <button class="auto-badge" onclick="applyPrompt()">
+      <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      AUTO-STYLE DEPUIS LE PROMPT
+    </button>
+    <div class="prompt-result" id="prompt-result">
+      <div class="pr-direction" id="pr-dir">Direction</div>
+      <div class="pr-desc" id="pr-desc">Description</div>
+      <div class="pr-tags" id="pr-tags"></div>
+    </div>
+  </div>
+
+  <!-- 2. IDENTITY -->
+  <div>
+    <div class="section-tag">2. Identité</div>
+    <div class="section-title">Remplis ton profil.</div>
+    <div class="field-row">
+      <div class="field"><label>Prénom & Nom</label><input type="text" id="f-name" placeholder="Awa Ndiaye" oninput="updatePreview()"></div>
+      <div class="field"><label>Titre / Rôle</label><input type="text" id="f-role" placeholder="CEO · CardTap" oninput="updatePreview()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Entreprise</label><input type="text" id="f-company" placeholder="CardTap" oninput="updatePreview()"></div>
+      <div class="field"><label>Téléphone</label><input type="tel" id="f-phone" placeholder="+221 77 000 00 00" oninput="updatePreview()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="awa@cardtap.africa" oninput="updatePreview()"></div>
+      <div class="field"><label>Site web</label><input type="text" id="f-web" placeholder="cardtap.africa" oninput="updatePreview()"></div>
+    </div>
+    <div class="field"><label>Ville / Localisation</label><input type="text" id="f-location" placeholder="Dakar, Sénégal" oninput="updatePreview()"></div>
+    <div class="field"><label>Bio courte <span style="color:var(--muted);font-weight:400">(optionnel)</span></label><textarea id="f-bio" placeholder="Ce que tu veux que les gens retiennent de toi..." oninput="updatePreview()"></textarea></div>
+  </div>
+
+  <!-- 3. DIGITAL STYLE -->
+  <div>
+    <div class="section-tag">3. Style digital</div>
+    <div class="section-title">Ambiance de ta carte digitale.</div>
+    <div class="theme-previews">
+      <div class="tp tp-noir selected" onclick="setTheme('noir','Executive Noir')" data-theme="noir"><span>Noir</span></div>
+      <div class="tp tp-editorial" onclick="setTheme('editorial','Studio Editorial')" data-theme="editorial"><span>Studio</span></div>
+      <div class="tp tp-pulse" onclick="setTheme('pulse','Pulse Tech')" data-theme="pulse"><span>Pulse</span></div>
+      <div class="tp tp-teranga" onclick="setTheme('teranga','Teranga Warm')" data-theme="teranga"><span>Teranga</span></div>
+    </div>
+    <div class="style-grid" style="margin-top:12px" id="style-cards">
+      <div class="style-card selected" data-theme="noir" onclick="setTheme('noir','Executive Noir')">
+        <div class="sc-dot" style="background:#C8922A"></div>
+        <div class="sc-info"><div class="sc-name">Executive Noir</div><div class="sc-desc">Sombre, doré et premium — pour dirigeants, fintech, juristes.</div></div>
+      </div>
+      <div class="style-card" data-theme="editorial" onclick="setTheme('editorial','Studio Editorial')">
+        <div class="sc-dot" style="background:#FF4D2E"></div>
+        <div class="sc-info"><div class="sc-name">Studio Editorial</div><div class="sc-desc">Épuré, crème et impact — créatifs, consultants, agences.</div></div>
+      </div>
+      <div class="style-card" data-theme="pulse" onclick="setTheme('pulse','Pulse Tech')">
+        <div class="sc-dot" style="background:#6C63FF"></div>
+        <div class="sc-info"><div class="sc-name">Pulse Tech</div><div class="sc-desc">Électrique et futuriste — startups, ingénieurs, IA.</div></div>
+      </div>
+      <div class="style-card" data-theme="teranga" onclick="setTheme('teranga','Teranga Warm')">
+        <div class="sc-dot" style="background:#E8845A"></div>
+        <div class="sc-info"><div class="sc-name">Teranga Warm</div><div class="sc-desc">Chaleureux, humain — entrepreneurs, commerce, hospitalité.</div></div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Couleur d'accent personnalisée</label>
+      <div class="color-row" id="accent-colors">
+        <div class="color-swatch selected" style="background:#C8922A" onclick="setAccent('#C8922A',this)"></div>
+        <div class="color-swatch" style="background:#1E9B5F" onclick="setAccent('#1E9B5F',this)"></div>
+        <div class="color-swatch" style="background:#2878CC" onclick="setAccent('#2878CC',this)"></div>
+        <div class="color-swatch" style="background:#E8845A" onclick="setAccent('#E8845A',this)"></div>
+        <div class="color-swatch" style="background:#6C63FF" onclick="setAccent('#6C63FF',this)"></div>
+        <div class="color-swatch" style="background:#FF4D2E" onclick="setAccent('#FF4D2E',this)"></div>
+        <input type="color" class="custom-color-input" id="custom-color" onchange="setAccent(this.value,null)" title="Couleur personnalisée">
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. PHYSICAL CARD CUSTOMIZATION -->
+  <div>
+    <div class="section-tag">4. Personnalisation physique</div>
+    <div class="section-title">Comment tu veux ta carte.</div>
+
+    <!-- Custom image -->
+    <div style="margin-bottom:16px">
+      <div class="field"><label>Image / visuel personnalisé <span style="color:var(--muted);font-weight:400">(comme une carte bancaire spéciale)</span></label></div>
+      <div class="image-grid">
+        <div class="image-option" onclick="setImageMode('upload')" id="img-opt-upload">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p>Uploader une image</p>
+          <small>JPG, PNG, SVG</small>
+        </div>
+        <div class="image-option" onclick="setImageMode('url')" id="img-opt-url">
+          <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          <p>Lien vers une image web</p>
+          <small>URL directe</small>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="img-file" accept="image/*" onchange="handleImageUpload(this)">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p onclick="document.getElementById('img-file').click()">Cliquer pour uploader</p>
+        <small>ou glisser-déposer</small>
+      </div>
+
+      <div class="url-input-wrap" id="url-wrap">
+        <div class="field" style="margin-top:8px"><label>URL de l'image</label><input type="url" id="img-url" placeholder="https://..." oninput="applyImageUrl()"></div>
+      </div>
+
+      <div class="or-divider"><span>ou</span></div>
+
+      <div class="bamba-option" id="bamba-design" onclick="toggleBambaDesign()" style="margin-top:0">
+        <div class="bamba-avatar" style="font-size:13px">✦</div>
+        <div class="bamba-text">
+          <strong>Laisser Bamba créer le design physique</strong>
+          <span>Je choisis les couleurs, la finition et le visuel assorti à ton style digital.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Material & finish -->
+    <div class="field"><label>Matière</label></div>
+    <div class="tag-group" id="material-tags">
+      <div class="tag selected" onclick="setTag(this,'material')">Soft touch PVC</div>
+      <div class="tag" onclick="setTag(this,'material')">PVC brillant</div>
+      <div class="tag" onclick="setTag(this,'material')">Métal (premium)</div>
+      <div class="tag" onclick="setTag(this,'material')">Bois (eco)</div>
+    </div>
+
+    <div class="field" style="margin-top:14px"><label>Finition</label></div>
+    <div class="tag-group" id="finish-tags">
+      <div class="tag selected" onclick="setTag(this,'finish')">Mat</div>
+      <div class="tag" onclick="setTag(this,'finish')">Brillant</div>
+      <div class="tag" onclick="setTag(this,'finish')">Satiné</div>
+    </div>
+
+    <div class="field" style="margin-top:14px"><label>Dorure / Foil</label></div>
+    <div class="tag-group" id="foil-tags">
+      <div class="tag" onclick="setTag(this,'foil')">Aucun</div>
+      <div class="tag selected" onclick="setTag(this,'foil')">Dorure or</div>
+      <div class="tag" onclick="setTag(this,'foil')">Dorure argent</div>
+      <div class="tag" onclick="setTag(this,'foil')">Holographique</div>
+    </div>
+
+    <!-- Toggles -->
+    <div style="margin-top:16px">
+      <div class="toggle-row">
+        <div><div class="toggle-label">QR code au dos</div><div class="toggle-sub">Lien de secours si NFC ne fonctionne pas</div></div>
+        <label class="toggle"><input type="checkbox" id="tog-qr" checked onchange="updatePreview()"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Logo sur la face avant</div><div class="toggle-sub">Logo GeoChifa ou ton propre logo</div></div>
+        <label class="toggle"><input type="checkbox" id="tog-logo" checked onchange="updatePreview()"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Message au dos</div><div class="toggle-sub">Texte court sur la carte physique</div></div>
+        <label class="toggle"><input type="checkbox" id="tog-msg" checked onchange="updatePreview()"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="field" id="back-msg-field" style="margin-top:10px">
+      <label>Texte au dos</label>
+      <input type="text" id="f-backmsg" placeholder="Tap, scan, connect." oninput="updatePreview()" maxlength="40">
+    </div>
+  </div>
+
+  <!-- 5. ORDER HANDOFF -->
+  <div id="order-section">
+    <div class="section-tag">5. Commande</div>
+    <div class="section-title">Récapitulatif & envoi.</div>
+
+    <div class="order-box">
+      <div class="order-line"><span>Offre</span><strong id="o-offre">Pro — 35 000 FCFA</strong></div>
+      <div class="order-line"><span>Style digital</span><strong id="o-style">Executive Noir</strong></div>
+      <div class="order-line"><span>Matière</span><strong id="o-mat">Soft touch PVC</strong></div>
+      <div class="order-line"><span>Finition</span><strong id="o-fin">Mat + Dorure or</strong></div>
+      <div class="order-line"><span>Image custom</span><strong id="o-img">Aucune</strong></div>
+      <div class="order-line"><span>Délai</span><strong>48h</strong></div>
+    </div>
+
+    <div class="order-total">
+      <span>Total</span>
+      <strong id="o-total">35 000 FCFA</strong>
+    </div>
+
+    <button class="btn-order" onclick="sendOrder()">
+      Commander via WhatsApp →
+    </button>
+    <button class="btn-copy" onclick="copyBrief()">
+      Copier le brief complet
+    </button>
+  </div>
+
+</div><!-- /panel -->
+
+<!-- RIGHT PREVIEW -->
+<div class="preview-pane">
+
+  <div>
+    <div class="preview-label">Live Preview</div>
+    <div class="preview-caption">Ce que ton client voit quand il tape sa carte NFC</div>
+  </div>
+
+  <!-- Phone -->
+  <div class="phone-wrap">
+    <div class="phone-outer">
+      <div class="phone-screen" id="phone-screen">
+        <div class="phone-notch"></div>
+        <div class="dcard theme-noir" id="dcard">
+          <div class="dcard-top">
+            <div class="dcard-avatar" id="dc-avatar">AN</div>
+            <div class="dcard-identity">
+              <div class="dcard-badge" id="dc-badge">CARDTAP SIGNATURE</div>
+              <div class="dcard-name" id="dc-name">Awa Ndiaye</div>
+              <div class="dcard-role" id="dc-role">Business Partnerships Lead · CardTap</div>
+            </div>
+          </div>
+          <div class="dcard-bio" id="dc-bio" style="margin-bottom:10px;padding:0 4px">Je transforme les premières rencontres en opportunités réelles.</div>
+          <div class="dcard-fields">
+            <div class="dfield">
+              <div class="dfield-label">Direct Line</div>
+              <div class="dfield-val" id="dc-phone">+221 77 600 00 00</div>
+            </div>
+            <div class="dfield">
+              <div class="dfield-label">Email</div>
+              <div class="dfield-val" id="dc-email">awa@cardtap.africa</div>
+            </div>
+            <div class="dfield">
+              <div class="dfield-label">Web</div>
+              <div class="dfield-val" id="dc-web">cardtap.africa</div>
+            </div>
+            <div class="dfield">
+              <div class="dfield-label">Location</div>
+              <div class="dfield-val" id="dc-loc">Dakar, Sénégal</div>
+            </div>
+          </div>
+          <div class="dcard-btns">
+            <button class="dcard-btn">Sauvegarder</button>
+            <button class="dcard-btn">Partager</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Physical card -->
+  <div>
+    <div class="preview-label" style="margin-bottom:8px">Carte physique NFC</div>
+    <div class="pcard-stack">
+      <!-- Back card -->
+      <div class="pcard back theme-noir" id="pcard-back">
+        <div class="pcard-bg" id="pcb-bg"></div>
+        <div class="pcard-overlay"></div>
+        <div class="pcard-custom-img" id="pc-custom-img-back"></div>
+        <div class="pcard-back-content">
+          <div class="pcard-qr">
+            <div style="font-size:6px;color:#111;text-align:center;line-height:1.2">QR<br>SCAN</div>
+          </div>
+          <div class="pcard-url" id="pc-url">awa-cardtap.geochifa.com</div>
+        </div>
+        <div class="pcard-slogan" id="pc-slogan">Tap, scan, connect.</div>
+      </div>
+      <!-- Front card -->
+      <div class="pcard front theme-noir" id="pcard-front">
+        <div class="pcard-bg" id="pcf-bg"></div>
+        <div class="pcard-overlay"></div>
+        <div class="pcard-custom-img" id="pc-custom-img"></div>
+        <div class="pcard-content">
+          <div class="pcard-top-row">
+            <div class="pcard-logo" id="pc-logo">CARDTAP · GEOCHIFA</div>
+            <div class="pcard-chip"></div>
+          </div>
+          <div>
+            <div class="pcard-name" id="pc-name">Awa Ndiaye</div>
+            <div class="pcard-role" id="pc-role">Business Partnerships Lead · CardTap</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- URL tag preview -->
+  <div style="text-align:center">
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 18px;display:inline-block">
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">URL NFC</div>
+      <div style="font-family:'Space Mono',monospace;font-size:12px;color:rgba(200,146,42,.9);font-weight:700" id="preview-url">awa-ndiaye.geochifa.com</div>
+    </div>
+  </div>
+
+</div><!-- /preview-pane -->
+</div><!-- /studio -->
+
+<div class="toast" id="toast">Copié !</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────
+const state = {
+  theme: 'noir',
+  themeName: 'Executive Noir',
+  name: 'Awa Ndiaye',
+  role: 'Business Partnerships Lead · CardTap',
+  company: 'CardTap',
+  phone: '+221 77 600 00 00',
+  email: 'awa@cardtap.africa',
+  web: 'cardtap.africa',
+  location: 'Dakar, Sénégal',
+  bio: 'Je transforme les premières rencontres en opportunités réelles.',
+  material: 'Soft touch PVC',
+  finish: 'Mat',
+  foil: 'Dorure or',
+  backmsg: 'Tap, scan, connect.',
+  accentColor: '#C8922A',
+  customImage: null,
+  bambaDecides: false,
+  bambaDesign: false,
+  imageMode: null,
+};
+
+// ── PROMPTS ──────────────────────────────────────────
+const promptThemes = [
+  { keyword:['noir','sombre','dark','luxe','premium','directeur','gold','doré'], theme:'noir', direction:'Executive Noir', desc:'Premium et sobre, contraste sombre avec accents métalliques.', tags:['Brushed metal','Gold foil','Soft touch'] },
+  { keyword:['créatif','studio','agence','consultant','éditorial','minimal','clair','blanc'], theme:'editorial', direction:'Studio Editorial', desc:'Lumineux, épuré et impactant pour profils créatifs.', tags:['Soft matte','Blanc','Rouge] accent'] },
+  { keyword:['tech','startup','ia','ai','futur','digital','fintech','dev'], theme:'pulse', direction:'Pulse Tech', desc:'Électrique et futuriste, pour les bâtisseurs du numérique.', tags:['Holographique','Violet','Full digital'] },
+  { keyword:['teranga','chaleur','sénégal','afrique','commerce','humain','warm','accueillant'], theme:'teranga', direction:'Teranga Warm', desc:'Chaleureux et ancré — l\'hospitalité sénégalaise en carte.', tags:['Soft touch','Terre','Motif wax'] },
+];
+
+function applyPrompt() {
+  const prompt = document.getElementById('style-prompt').value.toLowerCase();
+  if(!prompt.trim()) return;
+  let best = promptThemes[0];
+  let bestScore = 0;
+  promptThemes.forEach(pt => {
+    let score = pt.keyword.filter(k => prompt.includes(k)).length;
+    if(score > bestScore) { bestScore = score; best = pt; }
+  });
+  setTheme(best.theme, best.direction);
+  const el = document.getElementById('prompt-result');
+  el.classList.add('visible');
+  document.getElementById('pr-dir').textContent = best.direction;
+  document.getElementById('pr-desc').textContent = best.desc;
+  const tagsEl = document.getElementById('pr-tags');
+  tagsEl.innerHTML = best.tags.map(t => `<span class="pr-tag" onclick="this.classList.toggle('selected')">${t}</span>`).join('');
+  showToast('Style appliqué : ' + best.direction);
+}
+
+// ── THEME ────────────────────────────────────────────
+function setTheme(theme, name) {
+  state.theme = theme;
+  state.themeName = name;
+  // Update style cards
+  document.querySelectorAll('.style-card').forEach(c => c.classList.toggle('selected', c.dataset.theme === theme));
+  document.querySelectorAll('.tp').forEach(c => c.classList.toggle('selected', c.dataset.theme === theme));
+  // Update digital card class
+  const dc = document.getElementById('dcard');
+  dc.className = `dcard theme-${theme}`;
+  // Update physical cards
+  document.getElementById('pcard-front').className = `pcard front theme-${theme}`;
+  document.getElementById('pcard-back').className = `pcard back theme-${theme}`;
+  updateOrderSummary();
+}
+
+// ── ACCENT COLOR ─────────────────────────────────────
+function setAccent(color, el) {
+  state.accentColor = color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  if(el) el.classList.add('selected');
+  document.documentElement.style.setProperty('--accent-preview', color);
+  document.getElementById('dc-avatar').style.background = color;
+  document.getElementById('dc-badge').style.color = color;
+}
+
+// ── PREVIEW UPDATE ───────────────────────────────────
+function updatePreview() {
+  const name = document.getElementById('f-name').value || 'Awa Ndiaye';
+  const role = document.getElementById('f-role').value || 'Business Partnerships Lead · CardTap';
+  const company = document.getElementById('f-company').value || 'CardTap';
+  const phone = document.getElementById('f-phone').value || '+221 77 600 00 00';
+  const email = document.getElementById('f-email').value || 'awa@cardtap.africa';
+  const web = document.getElementById('f-web').value || 'cardtap.africa';
+  const loc = document.getElementById('f-location').value || 'Dakar, Sénégal';
+  const bio = document.getElementById('f-bio').value;
+  const backmsg = document.getElementById('f-backmsg').value || 'Tap, scan, connect.';
+
+  // Initials
+  const parts = name.trim().split(' ');
+  const initials = parts.length >= 2 ? parts[0][0] + parts[parts.length-1][0] : name.slice(0,2);
+
+  document.getElementById('dc-avatar').textContent = initials.toUpperCase();
+  document.getElementById('dc-name').textContent = name;
+  document.getElementById('dc-role').textContent = role;
+  document.getElementById('dc-phone').textContent = phone;
+  document.getElementById('dc-email').textContent = email;
+  document.getElementById('dc-web').textContent = web;
+  document.getElementById('dc-loc').textContent = loc;
+  const bioEl = document.getElementById('dc-bio');
+  bioEl.textContent = bio || '';
+  bioEl.style.display = bio ? 'block' : 'none';
+
+  document.getElementById('pc-name').textContent = name;
+  document.getElementById('pc-role').textContent = role + (company ? ' · ' + company : '');
+  document.getElementById('pc-slogan').textContent = backmsg;
+
+  // URL slug
+  const slug = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  const url = slug + '.geochifa.com';
+  document.getElementById('pc-url').textContent = url;
+  document.getElementById('preview-url').textContent = url;
+
+  updateOrderSummary();
+}
+
+// ── TAGS ─────────────────────────────────────────────
+function setTag(el, group) {
+  const groupEl = document.getElementById(group + '-tags');
+  groupEl.querySelectorAll('.tag').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  state[group] = el.textContent;
+  updateOrderSummary();
+}
+
+// ── IMAGE MODE ────────────────────────────────────────
+function setImageMode(mode) {
+  state.imageMode = mode;
+  document.getElementById('upload-zone').classList.toggle('visible', mode === 'upload');
+  document.getElementById('url-wrap').classList.toggle('visible', mode === 'url');
+  document.getElementById('img-opt-upload').style.border = mode === 'upload' ? '2px solid var(--emerald)' : '';
+  document.getElementById('img-opt-url').style.border = mode === 'url' ? '2px solid var(--emerald)' : '';
+}
+
+function handleImageUpload(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    state.customImage = e.target.result;
+    applyCustomImage(e.target.result);
+    showToast('Image appliquée à la carte physique');
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyImageUrl() {
+  const url = document.getElementById('img-url').value;
+  if(url && url.startsWith('http')) {
+    state.customImage = url;
+    applyCustomImage(url);
+  }
+}
+
+function applyCustomImage(src) {
+  const imgs = document.querySelectorAll('.pcard-custom-img');
+  imgs.forEach(img => {
+    img.style.backgroundImage = `url(${src})`;
+    img.classList.add('visible');
+  });
+  state.customImage = src;
+  updateOrderSummary();
+}
+
+// ── BAMBA DECIDES ────────────────────────────────────
+function toggleBamba() {
+  state.bambaDecides = !state.bambaDecides;
+  document.getElementById('bamba-opt').classList.toggle('selected', state.bambaDecides);
+  showToast(state.bambaDecides ? 'Mode Signature activé — Bamba s\'occupe de tout !' : 'Mode personnalisé');
+}
+
+function toggleBambaDesign() {
+  state.bambaDesign = !state.bambaDesign;
+  document.getElementById('bamba-design').classList.toggle('selected', state.bambaDesign);
+  showToast(state.bambaDesign ? 'Bamba créera le design physique assorti' : 'Personnalisation manuelle');
+}
+
+// ── ORDER ─────────────────────────────────────────────
+function updateOrderSummary() {
+  const matEl = document.querySelector('#material-tags .tag.selected');
+  const finEl = document.querySelector('#finish-tags .tag.selected');
+  const foilEl = document.querySelector('#foil-tags .tag.selected');
+  const mat = matEl ? matEl.textContent : 'Soft touch PVC';
+  const fin = finEl ? finEl.textContent : 'Mat';
+  const foil = foilEl ? foilEl.textContent : 'Aucun';
+
+  document.getElementById('o-style').textContent = state.themeName;
+  document.getElementById('o-mat').textContent = mat;
+  document.getElementById('o-fin').textContent = fin + (foil !== 'Aucun' ? ' + ' + foil : '');
+  document.getElementById('o-img').textContent = state.customImage ? 'Image personnalisée' : state.bambaDesign ? 'Design par Bamba' : 'Aucune';
+
+  // Price
+  let base = 35000;
+  if(mat === 'Métal (premium)') base = 55000;
+  const foilExtra = foil !== 'Aucun' ? 5000 : 0;
+  const total = base + foilExtra;
+  document.getElementById('o-total').textContent = total.toLocaleString('fr-SN') + ' FCFA';
+  document.getElementById('o-offre').textContent = 'Pro — ' + base.toLocaleString('fr-SN') + ' FCFA';
+}
+
+function getBrief() {
+  const name = document.getElementById('f-name').value || 'N/A';
+  const role = document.getElementById('f-role').value || 'N/A';
+  const company = document.getElementById('f-company').value || 'N/A';
+  const phone = document.getElementById('f-phone').value || 'N/A';
+  const email = document.getElementById('f-email').value || 'N/A';
+  const web = document.getElementById('f-web').value || 'N/A';
+  const loc = document.getElementById('f-location').value || 'N/A';
+  const bio = document.getElementById('f-bio').value || '';
+  const backmsg = document.getElementById('f-backmsg').value || 'Tap, scan, connect.';
+  const matEl = document.querySelector('#material-tags .tag.selected');
+  const finEl = document.querySelector('#finish-tags .tag.selected');
+  const foilEl = document.querySelector('#foil-tags .tag.selected');
+  const mat = matEl ? matEl.textContent : 'Soft touch PVC';
+  const fin = finEl ? finEl.textContent : 'Mat';
+  const foil = foilEl ? foilEl.textContent : 'Aucun';
+  const prompt = document.getElementById('style-prompt').value;
+
+  return `📇 BRIEF CARDTAP — ${name}
+━━━━━━━━━━━━━━━━━━━━━
+👤 IDENTITÉ
+Nom: ${name}
+Titre: ${role}
+Entreprise: ${company}
+Téléphone: ${phone}
+Email: ${email}
+Site: ${web}
+Localisation: ${loc}
+Bio: ${bio || '(aucune)'}
+━━━━━━━━━━━━━━━━━━━━━
+🎨 STYLE DIGITAL
+Thème: ${state.themeName}
+Couleur d'accent: ${state.accentColor}
+Prompt créatif: ${prompt || '(aucun)'}
+Mode Bamba: ${state.bambaDecides ? 'Oui — design complet confié' : 'Non'}
+━━━━━━━━━━━━━━━━━━━━━
+💳 CARTE PHYSIQUE NFC
+Matière: ${mat}
+Finition: ${fin}
+Foil/Dorure: ${foil}
+Message au dos: ${backmsg}
+Image custom: ${state.customImage ? 'Oui (fournie)' : state.bambaDesign ? 'Design confié à Bamba' : 'Non'}
+QR au dos: ${document.getElementById('tog-qr').checked ? 'Oui' : 'Non'}
+Logo avant: ${document.getElementById('tog-logo').checked ? 'Oui' : 'Non'}
+━━━━━━━━━━━━━━━━━━━━━
+💰 COMMANDE
+Offre: Pro
+Total: ${document.getElementById('o-total').textContent}
+Délai: 48h
+━━━━━━━━━━━━━━━━━━━━━
+Envoyé via CardTap Studio · geochifa.com`;
+}
+
+function copyBrief() {
+  navigator.clipboard.writeText(getBrief()).then(() => showToast('Brief copié dans le presse-papier !'));
+}
+
+function sendOrder() {
+  const brief = encodeURIComponent(getBrief());
+  const waUrl = `https://wa.me/221776585371?text=${brief}`;
+  window.open(waUrl, '_blank');
+}
+
+function scrollToOrder() {
+  document.getElementById('order-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── INIT ──────────────────────────────────────────────
+updatePreview();
+updateOrderSummary();
+
+// Back message toggle
+document.getElementById('tog-msg').addEventListener('change', function() {
+  document.getElementById('back-msg-field').style.display = this.checked ? 'block' : 'none';
+});
+</script>
+</body>
+</html>

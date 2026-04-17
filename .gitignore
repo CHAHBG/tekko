@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# SSH keys — NEVER commit private keys
+andafar-hetzner
+andafar-hetzner.pub
+
+# Deployment guide contains server IP / root credentials
+MAC_HETZNER_NFC_DEPLOY.md
+
+# Environment files (also ignored inside website/ by website/.gitignore)
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+
+# Database & uploads (already ignored by website/.gitignore, double-covered here)
+website/data/
+website/uploads/
