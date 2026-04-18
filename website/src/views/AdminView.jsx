@@ -291,6 +291,9 @@ export function AdminView() {
 	const [analyticsLoading, setAnalyticsLoading] = useState(false);
 	const [analyticsPeriod, setAnalyticsPeriod] = useState('7d');
 
+	// ── COLLAPSIBLE ORDERS ───────────────────────────────────────
+	const [expandedOrders, setExpandedOrders] = useState(new Set());
+
 	async function handleLogin(event) {
 		event.preventDefault();
 		setLoginError('');
@@ -503,6 +506,28 @@ export function AdminView() {
 			if (error.status === 401) { handleUnauthorized(); return; }
 		} finally {
 			setAnalyticsLoading(false);
+		}
+	}
+
+	function toggleOrder(orderId) {
+		setExpandedOrders((prev) => {
+			const next = new Set(prev);
+			if (next.has(orderId)) next.delete(orderId);
+			else next.add(orderId);
+			return next;
+		});
+	}
+
+	async function markDelivered(orderId) {
+		try {
+			const response = await updateAdminOrder(orderId, { ...drafts[orderId], orderStatus: 'delivered' }, token);
+			const nextOrders = orders.map((o) => (o.orderId === orderId ? response.order : o));
+			setOrders(nextOrders);
+			setDrafts(createDrafts(nextOrders));
+			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} marquee livree.` });
+		} catch (error) {
+			if (error.status === 401) { handleUnauthorized(); return; }
+			setStatus({ type: 'error', message: error.message });
 		}
 	}
 
@@ -721,427 +746,438 @@ export function AdminView() {
 									adminNotes: order.adminNotes,
 									deliveryNotes: order.deliveryNotes,
 								};
+								const isExpanded = expandedOrders.has(order.orderId);
+								const statusLabel = { submitted: 'Soumise', 'in-production': 'En production', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee' }[draft.orderStatus] || draft.orderStatus;
 
 								return (
-									<article key={order.orderId} className="admin-order-card">
-										<div className="admin-order-top">
-											<div className="admin-order-meta">
-												<div className="admin-order-pack">{order.packageSelection?.name ?? order.packKey}</div>
-												<h2 className="admin-order-name">{order.profile?.fullName}</h2>
-												<p className="admin-order-sub">
-													{order.profile?.role}
-													{order.profile?.company ? ` · ${order.profile.company}` : ''}
-												</p>
-											</div>
-											<div className="admin-order-right">
-												<strong className="admin-order-price">{formatMoney(order.packPrice)}</strong>
-												{order.discountAmount > 0 && (
-													<span className="admin-coupon-badge">
-														{order.couponCode} -{formatMoney(order.discountAmount)}
+									<article key={order.orderId} className={`admin-order-card${isExpanded ? ' expanded' : ' collapsed'}`}>
+										{/* ── SUMMARY ROW (always visible) ─────── */}
+										<div className="admin-order-summary" onClick={() => toggleOrder(order.orderId)}>
+											<div className="admin-order-summary-left">
+												{avatarUrl && <img className="admin-order-summary-avatar" src={avatarUrl} alt="" />}
+												<div className="admin-order-summary-info">
+													<strong className="admin-order-summary-name">{order.profile?.fullName}</strong>
+													<span className="admin-order-summary-sub">
+														{order.profile?.role}{order.profile?.company ? ` · ${order.profile.company}` : ''}
 													</span>
+												</div>
+											</div>
+											<div className="admin-order-summary-right">
+												<span className="admin-order-summary-pack">{order.packageSelection?.name ?? order.packKey}</span>
+												<strong className="admin-order-summary-price">{formatMoney(order.packPrice)}</strong>
+												<span className={`admin-pay-badge admin-pay-${draft.paymentStatus}`}>{draft.paymentStatus}</span>
+												<span className={`admin-order-status-badge admin-ostatus-${draft.orderStatus}`}>{statusLabel}</span>
+												{draft.orderStatus !== 'delivered' && draft.paymentStatus === 'paid' && (
+													<button
+														type="button"
+														className="admin-btn-deliver"
+														onClick={(e) => { e.stopPropagation(); markDelivered(order.orderId); }}
+													>
+														Marquer livree
+													</button>
 												)}
-												<span className="admin-order-date">
+												<span className="admin-order-summary-date">
 													{new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
 												</span>
-												<span className={`admin-pay-badge admin-pay-${draft.paymentStatus}`}>{draft.paymentStatus}</span>
-												{draft.orderStatus === 'delivered' && (
-													<span className="admin-pay-badge admin-pay-delivered">Livrée</span>
-												)}
-												{draft.orderStatus !== 'delivered' && draft.paymentStatus === 'paid' && (
-													<span className="admin-pay-badge admin-pay-pending-delivery">A livrer</span>
-												)}
+												<span className={`admin-order-chevron${isExpanded ? ' open' : ''}`}>
+													<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+												</span>
 											</div>
 										</div>
 
-										<div className="admin-images">
-											{avatarUrl && (
-												<div className="admin-img-wrap">
-													<span>Profil</span>
-													<img src={avatarUrl} alt={order.profile?.fullName} />
-												</div>
-											)}
-											{artworkUrl && (
-												<div className="admin-img-wrap wide">
-													<span>Artwork carte</span>
-													<img src={artworkUrl} alt="artwork" />
-												</div>
-											)}
-										</div>
-
-										{/* ── CARD PREVIEWS ─────────────────────────────────── */}
-										<div className="admin-card-previews">
-											{/* Digital card */}
-											{order.finalCardUrl && (
-												<div className="admin-preview-digital">
-													<span className="admin-preview-label">Carte digitale</span>
-													<div className="admin-phone-frame">
-														<iframe
-															src={order.finalCardUrl}
-															title={`Carte de ${order.profile?.fullName}`}
-															sandbox="allow-scripts allow-same-origin"
-															loading="lazy"
-														/>
-													</div>
-													<a href={order.finalCardUrl} target="_blank" rel="noreferrer" className="admin-preview-link">
-														Ouvrir ↗
-													</a>
-												</div>
-											)}
-											{/* Physical card — Front */}
-											<div className="admin-preview-physical">
-												<span className="admin-preview-label">Carte NFC · Recto</span>
-												<div className="admin-nfc-card-mini" style={{
-													'--card-base': materialCatalog[order.customization?.material]?.base ?? '#f5f5f3',
-													'--card-edge': materialCatalog[order.customization?.material]?.edge ?? '#e0e0d8',
-													'--card-ink': materialCatalog[order.customization?.material]?.ink ?? '#111',
-													'--card-accent': order.customization?.accent ?? '#c8a96e',
-												}}>
-													{artworkUrl && (
-														<img src={artworkUrl} alt="artwork" className="admin-card-artwork-mini" />
+										{/* ── DETAILS (collapsible) ───────────── */}
+										{isExpanded && (
+											<div className="admin-order-details">
+												<div className="admin-images">
+													{avatarUrl && (
+														<div className="admin-img-wrap">
+															<span>Profil</span>
+															<img src={avatarUrl} alt={order.profile?.fullName} />
+														</div>
 													)}
-													<div className="admin-card-content-mini">
-														<span className="admin-card-brand-mini">TEKKO</span>
-														{order.profile?.fullName && <strong>{order.profile.fullName}</strong>}
-														{order.profile?.role && <span>{order.profile.role}</span>}
+													{artworkUrl && (
+														<div className="admin-img-wrap wide">
+															<span>Artwork carte</span>
+															<img src={artworkUrl} alt="artwork" />
+														</div>
+													)}
+												</div>
+
+												{/* ── CARD PREVIEWS ─────────────────────────────────── */}
+												<div className="admin-card-previews">
+													{order.finalCardUrl && (
+														<div className="admin-preview-digital">
+															<span className="admin-preview-label">Carte digitale</span>
+															<div className="admin-phone-frame">
+																<iframe
+																	src={order.finalCardUrl}
+																	title={`Carte de ${order.profile?.fullName}`}
+																	sandbox="allow-scripts allow-same-origin"
+																	loading="lazy"
+																/>
+															</div>
+															<a href={order.finalCardUrl} target="_blank" rel="noreferrer" className="admin-preview-link">
+																Ouvrir
+															</a>
+														</div>
+													)}
+													<div className="admin-preview-physical">
+														<span className="admin-preview-label">Carte NFC - Recto</span>
+														<div className="admin-nfc-card-mini" style={{
+															'--card-base': materialCatalog[order.customization?.material]?.base ?? '#f5f5f3',
+															'--card-edge': materialCatalog[order.customization?.material]?.edge ?? '#e0e0d8',
+															'--card-ink': materialCatalog[order.customization?.material]?.ink ?? '#111',
+															'--card-accent': order.customization?.accent ?? '#c8a96e',
+														}}>
+															{artworkUrl && (
+																<img src={artworkUrl} alt="artwork" className="admin-card-artwork-mini" />
+															)}
+															<div className="admin-card-content-mini">
+																<span className="admin-card-brand-mini">TEKKO</span>
+																{order.profile?.fullName && <strong>{order.profile.fullName}</strong>}
+																{order.profile?.role && <span>{order.profile.role}</span>}
+															</div>
+														</div>
+													</div>
+													<div className="admin-preview-physical">
+														<span className="admin-preview-label">Carte NFC - Verso</span>
+														<div className="admin-nfc-card-mini admin-nfc-card-back" style={{
+															'--card-base': materialCatalog[order.customization?.material]?.base ?? '#f5f5f3',
+															'--card-ink': materialCatalog[order.customization?.material]?.ink ?? '#111',
+															'--card-accent': order.customization?.accent ?? '#c8a96e',
+														}}>
+															<div className="admin-card-back-content">
+																<span className="admin-card-back-qr-label">{order.customization?.includeQr ? 'QR' : 'Tap only'}</span>
+																{order.customization?.includeQr && (
+																	<div className="admin-card-back-qr">
+																		<img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(order.finalCardUrl || '')}`} alt="QR" />
+																	</div>
+																)}
+																<span className="admin-card-back-url">{(order.finalCardUrl || '').replace(/^https?:\/\//, '')}</span>
+															</div>
+														</div>
 													</div>
 												</div>
-											</div>
-											{/* Physical card — Back */}
-											<div className="admin-preview-physical">
-												<span className="admin-preview-label">Carte NFC · Verso</span>
-												<div className="admin-nfc-card-mini admin-nfc-card-back" style={{
-													'--card-base': materialCatalog[order.customization?.material]?.base ?? '#f5f5f3',
-													'--card-ink': materialCatalog[order.customization?.material]?.ink ?? '#111',
-													'--card-accent': order.customization?.accent ?? '#c8a96e',
-												}}>
-													<div className="admin-card-back-content">
-														<span className="admin-card-back-qr-label">{order.customization?.includeQr ? 'QR' : 'Tap only'}</span>
-														{order.customization?.includeQr && (
-															<div className="admin-card-back-qr">
-																<img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(order.finalCardUrl || '')}`} alt="QR" />
+
+												{/* ── DOWNLOAD ASSETS ────────────────────────────── */}
+												<div className="admin-downloads">
+													<span className="admin-downloads-title">Telecharger pour impression</span>
+													<div className="admin-downloads-row">
+														{artworkUrl && (
+															<a className="admin-dl-btn" href={artworkUrl} download="artwork" title="Telecharger le visuel">
+																Visuel recto
+															</a>
+														)}
+														{order.customization?.includeQr && order.finalCardUrl && (
+															<a className="admin-dl-btn" href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${encodeURIComponent(order.finalCardUrl)}`} download="qr-code.png" title="Telecharger le QR">
+																QR Code
+															</a>
+														)}
+														{avatarUrl && (
+															<a className="admin-dl-btn" href={avatarUrl} download="photo-profil" title="Telecharger la photo">
+																Photo profil
+															</a>
+														)}
+														{order.paymentStatus === 'paid' && (
+															<a className="admin-dl-btn" href={`/api/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`} download title="Telecharger le recu PDF">
+																Recu PDF
+															</a>
+														)}
+													</div>
+												</div>
+
+												<div className="admin-order-data">
+													{order.profile?.phone && <div className="admin-data-item"><span>Telephone</span><strong>{order.profile.phone}</strong></div>}
+													{order.profile?.email && <div className="admin-data-item"><span>Email</span><strong>{order.profile.email}</strong></div>}
+													{order.orderContact?.deliveryCity && <div className="admin-data-item"><span>Ville</span><strong>{order.orderContact.deliveryCity}</strong></div>}
+													{order.finalCardUrl && (
+														<div className="admin-data-item">
+															<span>URL carte</span>
+															<a href={order.finalCardUrl} target="_blank" rel="noreferrer">{order.finalCardUrl}</a>
+														</div>
+													)}
+													{order.customization?.customDomain && (
+														<div className="admin-data-item">
+															<span>Domaine</span>
+															<strong>{order.customization.customDomain}</strong>
+														</div>
+													)}
+													{order.customization?.customDomain && (
+														<div className="admin-data-item">
+															<span>Prix domaine/an</span>
+															<strong>
+																{order.customization?.domainPrice
+																	? `${formatMoney(order.customization.domainPrice)} (${order.customization?.domainUserShareFcfa > 0 ? formatMoney(order.customization.domainUserShareFcfa) + ' client' : 'inclus TEKKO'})`
+																	: order.customization?.domainUserShareFcfa > 0
+																		? formatMoney(order.customization.domainUserShareFcfa)
+																		: 'Inclus par TEKKO'}
+															</strong>
+														</div>
+													)}
+													{order.customization?.customDomain && (
+														<div className="admin-data-item">
+															<span>Acheter sur</span>
+															<span style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+																<a href={`https://www.hostinger.fr/domaine?search=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>Hostinger</a>
+																<a href={`https://www.namecheap.com/domains/registration/results/?domain=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>Namecheap</a>
+																<a href={`https://www.godaddy.com/domainsearch/find?domainToCheck=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>GoDaddy</a>
+															</span>
+														</div>
+													)}
+												</div>
+
+												<div className="admin-specs-row">
+													{[order.customization?.material, order.customization?.finish, order.customization?.foil, order.customization?.themeKey]
+														.filter(Boolean)
+														.map((s) => <span key={s} className="admin-spec-tag">{s}</span>)}
+													{order.customization?.cardLayout && (
+														<span className="admin-spec-tag admin-spec-layout">Layout : {order.customization.cardLayout}</span>
+													)}
+													{order.customization?.fontStyle && order.customization.fontStyle !== 'moderne' && (
+														<span className="admin-spec-tag admin-spec-font">Police : {order.customization.fontStyle}</span>
+													)}
+													{order.customization?.cardLabel && order.customization.cardLabel !== 'Tapal Signature' && (
+														<span className="admin-spec-tag">Label : {order.customization.cardLabel}</span>
+													)}
+												</div>
+
+												{(order.customization?.accent || order.customization?.textColor || order.customization?.bgColor) && (
+													<div className="admin-colours-row">
+														{order.customization?.accent && (
+															<span className="admin-colour-chip" title={`Accent : ${order.customization.accent}`}>
+																<span className="admin-colour-swatch" style={{ background: order.customization.accent }} />
+																Accent
+															</span>
+														)}
+														{order.customization?.textColor && (
+															<span className="admin-colour-chip" title={`Texte : ${order.customization.textColor}`}>
+																<span className="admin-colour-swatch" style={{ background: order.customization.textColor }} />
+																Texte
+															</span>
+														)}
+														{order.customization?.bgColor && (
+															<span className="admin-colour-chip" title={`Fond : ${order.customization.bgColor}`}>
+																<span className="admin-colour-swatch" style={{ background: order.customization.bgColor }} />
+																Fond
+															</span>
+														)}
+													</div>
+												)}
+
+												{(order.customization?.stylePrompt || order.customization?.animationEnabled) && (
+													<div className="admin-design-notes">
+														{order.customization?.stylePrompt && (
+															<div className="admin-design-row">
+																<span>Style prompt</span>
+																<p>{order.customization.stylePrompt}</p>
 															</div>
 														)}
-														<span className="admin-card-back-url">{(order.finalCardUrl || '').replace(/^https?:\/\//, '')}</span>
-													</div>
-												</div>
-											</div>
-										</div>
-
-										{/* ── DOWNLOAD ASSETS ────────────────────────────── */}
-										<div className="admin-downloads">
-											<span className="admin-downloads-title">Télécharger pour impression</span>
-											<div className="admin-downloads-row">
-												{artworkUrl && (
-													<a className="admin-dl-btn" href={artworkUrl} download="artwork" title="Télécharger le visuel">
-														↓ Visuel recto
-													</a>
-												)}
-												{order.customization?.includeQr && order.finalCardUrl && (
-													<a className="admin-dl-btn" href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${encodeURIComponent(order.finalCardUrl)}`} download="qr-code.png" title="Télécharger le QR">
-														↓ QR Code
-													</a>
-												)}
-												{avatarUrl && (
-													<a className="admin-dl-btn" href={avatarUrl} download="photo-profil" title="Télécharger la photo">
-														↓ Photo profil
-													</a>
-												)}
-												{order.paymentStatus === 'paid' && (
-													<a className="admin-dl-btn" href={`/api/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`} download title="Télécharger le reçu PDF">
-														↓ Reçu PDF
-													</a>
-												)}
-											</div>
-										</div>
-
-										<div className="admin-order-data">
-											{order.profile?.phone && <div className="admin-data-item"><span>Téléphone</span><strong>{order.profile.phone}</strong></div>}
-											{order.profile?.email && <div className="admin-data-item"><span>Email</span><strong>{order.profile.email}</strong></div>}
-											{order.orderContact?.deliveryCity && <div className="admin-data-item"><span>Ville</span><strong>{order.orderContact.deliveryCity}</strong></div>}
-											{order.finalCardUrl && (
-												<div className="admin-data-item">
-													<span>URL carte</span>
-													<a href={order.finalCardUrl} target="_blank" rel="noreferrer">{order.finalCardUrl}</a>
-												</div>
-											)}
-											{order.customization?.customDomain && (
-												<div className="admin-data-item">
-													<span>Domaine</span>
-													<strong>{order.customization.customDomain}</strong>
-												</div>
-											)}
-											{order.customization?.customDomain && (
-												<div className="admin-data-item">
-													<span>Prix domaine/an</span>
-													<strong>
-														{order.customization?.domainPrice
-															? `${formatMoney(order.customization.domainPrice)} (${order.customization?.domainUserShareFcfa > 0 ? formatMoney(order.customization.domainUserShareFcfa) + ' client' : 'inclus TEKKO'})`
-															: order.customization?.domainUserShareFcfa > 0
-																? formatMoney(order.customization.domainUserShareFcfa)
-																: 'Inclus par TEKKO'}
-													</strong>
-												</div>
-											)}
-											{order.customization?.customDomain && (
-												<div className="admin-data-item">
-													<span>Acheter sur</span>
-													<span style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
-														<a href={`https://www.hostinger.fr/domaine?search=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>Hostinger</a>
-														<a href={`https://www.namecheap.com/domains/registration/results/?domain=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>Namecheap</a>
-														<a href={`https://www.godaddy.com/domainsearch/find?domainToCheck=${order.customization.customDomain}`} target="_blank" rel="noreferrer" style={{color:'var(--orange)',fontWeight:600,fontSize:'.82rem'}}>GoDaddy</a>
-													</span>
-												</div>
-											)}
-										</div>
-
-										<div className="admin-specs-row">
-											{[order.customization?.material, order.customization?.finish, order.customization?.foil, order.customization?.themeKey]
-												.filter(Boolean)
-												.map((s) => <span key={s} className="admin-spec-tag">{s}</span>)}
-											{order.customization?.cardLayout && (
-												<span className="admin-spec-tag admin-spec-layout">Layout : {order.customization.cardLayout}</span>
-											)}
-											{order.customization?.fontStyle && order.customization.fontStyle !== 'moderne' && (
-												<span className="admin-spec-tag admin-spec-font">Police : {order.customization.fontStyle}</span>
-											)}
-											{order.customization?.cardLabel && order.customization.cardLabel !== 'Tapal Signature' && (
-												<span className="admin-spec-tag">Label : {order.customization.cardLabel}</span>
-											)}
-										</div>
-
-										{/* Digital style colours */}
-										{(order.customization?.accent || order.customization?.textColor || order.customization?.bgColor) && (
-											<div className="admin-colours-row">
-												{order.customization?.accent && (
-													<span className="admin-colour-chip" title={`Accent : ${order.customization.accent}`}>
-														<span className="admin-colour-swatch" style={{ background: order.customization.accent }} />
-														Accent
-													</span>
-												)}
-												{order.customization?.textColor && (
-													<span className="admin-colour-chip" title={`Texte : ${order.customization.textColor}`}>
-														<span className="admin-colour-swatch" style={{ background: order.customization.textColor }} />
-														Texte
-													</span>
-												)}
-												{order.customization?.bgColor && (
-													<span className="admin-colour-chip" title={`Fond : ${order.customization.bgColor}`}>
-														<span className="admin-colour-swatch" style={{ background: order.customization.bgColor }} />
-														Fond
-													</span>
-												)}
-											</div>
-										)}
-
-										{/* Design instructions */}
-										{(order.customization?.stylePrompt || order.customization?.animationEnabled) && (
-											<div className="admin-design-notes">
-												{order.customization?.stylePrompt && (
-													<div className="admin-design-row">
-														<span>Style prompt</span>
-														<p>{order.customization.stylePrompt}</p>
+														{order.customization?.animationEnabled && order.customization?.animationDescription && (
+															<div className="admin-design-row">
+																<span>Animation</span>
+																<p>{order.customization.animationDescription}</p>
+															</div>
+														)}
 													</div>
 												)}
-												{order.customization?.animationEnabled && order.customization?.animationDescription && (
-													<div className="admin-design-row">
-														<span>Animation</span>
-														<p>{order.customization.animationDescription}</p>
-													</div>
-												)}
-											</div>
-										)}
 
-										<div className="admin-edit-fields">
-											<label className="admin-field">
-												<span>Statut commande</span>
-												<select value={draft.orderStatus} onChange={(e) => updateDraft(order.orderId, 'orderStatus', e.target.value)}>
-													<option value="submitted">Soumise</option>
-													<option value="in-production">En production</option>
-													<option value="ready">Prête</option>
-													<option value="delivered">Livrée</option>
-													<option value="cancelled">Annulée</option>
-												</select>
-											</label>
-											<label className="admin-field">
-												<span>Statut paiement</span>
-												<select value={draft.paymentStatus} onChange={(e) => updateDraft(order.orderId, 'paymentStatus', e.target.value)}>
-													<option value="pending">En attente</option>
-													<option value="paid">Payé</option>
-													<option value="failed">Échoué</option>
-													<option value="unknown">Inconnu</option>
-												</select>
-											</label>
-											<div className="admin-field admin-field-full admin-coupon-apply">
-												<span>Photos (avatar / logo)</span>
-												<div className="admin-upload-row">
-													<label className="admin-upload-label">
-														Photo profil
-														<input
-															type="file"
-															accept="image/jpeg,image/png,image/webp"
-															id={`avatar-upload-${order.orderId}`}
-															style={{ display: 'none' }}
-														/>
+												<div className="admin-edit-fields">
+													<label className="admin-field">
+														<span>Statut commande</span>
+														<select value={draft.orderStatus} onChange={(e) => updateDraft(order.orderId, 'orderStatus', e.target.value)}>
+															<option value="submitted">Soumise</option>
+															<option value="in-production">En production</option>
+															<option value="ready">Prete</option>
+															<option value="delivered">Livree</option>
+															<option value="cancelled">Annulee</option>
+														</select>
+													</label>
+													<label className="admin-field">
+														<span>Statut paiement</span>
+														<select value={draft.paymentStatus} onChange={(e) => updateDraft(order.orderId, 'paymentStatus', e.target.value)}>
+															<option value="pending">En attente</option>
+															<option value="paid">Paye</option>
+															<option value="failed">Echoue</option>
+															<option value="unknown">Inconnu</option>
+														</select>
+													</label>
+													<div className="admin-field admin-field-full admin-coupon-apply">
+														<span>Photos (avatar / logo)</span>
+														<div className="admin-upload-row">
+															<label className="admin-upload-label">
+																Photo profil
+																<input
+																	type="file"
+																	accept="image/jpeg,image/png,image/webp"
+																	id={`avatar-upload-${order.orderId}`}
+																	style={{ display: 'none' }}
+																/>
+																<button
+																	type="button"
+																	className="admin-btn-ghost"
+																	onClick={() => document.getElementById(`avatar-upload-${order.orderId}`)?.click()}
+																>
+																	Choisir photo
+																</button>
+															</label>
+															<label className="admin-upload-label">
+																Logo entreprise
+																<input
+																	type="file"
+																	accept="image/jpeg,image/png,image/webp"
+																	id={`logo-upload-${order.orderId}`}
+																	style={{ display: 'none' }}
+																/>
+																<button
+																	type="button"
+																	className="admin-btn-ghost"
+																	onClick={() => document.getElementById(`logo-upload-${order.orderId}`)?.click()}
+																>
+																	Choisir logo
+																</button>
+															</label>
+															<button
+																type="button"
+																className="admin-btn-ghost"
+																onClick={async () => {
+																	const avatarInput = document.getElementById(`avatar-upload-${order.orderId}`);
+																	const logoInput = document.getElementById(`logo-upload-${order.orderId}`);
+																	const avatarFile = avatarInput?.files?.[0] ?? null;
+																	const logoFile = logoInput?.files?.[0] ?? null;
+																	if (!avatarFile && !logoFile) {
+																		setStatus({ type: 'error', message: 'Selectionnez au moins une photo.' });
+																		return;
+																	}
+																	try {
+																		setStatus({ type: 'info', message: 'Envoi en cours...' });
+																		const result = await uploadAdminAssets(order.orderId, { avatarFile, logoFile }, token);
+																		const nextOrders = orders.map((o) => (o.orderId === order.orderId ? { ...o, assets: result.assets } : o));
+																		setOrders(nextOrders);
+																		setDrafts(createDrafts(nextOrders));
+																		if (avatarInput) avatarInput.value = '';
+																		if (logoInput) logoInput.value = '';
+																		setStatus({ type: 'success', message: 'Photos mises a jour avec succes.' });
+																	} catch (error) {
+																		if (error.status === 401) { handleUnauthorized(); return; }
+																		setStatus({ type: 'error', message: error.message });
+																	}
+																}}
+															>
+																Envoyer
+															</button>
+														</div>
+													</div>
+													<div className="admin-field admin-field-full admin-coupon-apply">
+														<span>Coupon</span>
+														<div className="admin-coupon-apply-row">
+															<input
+																type="text"
+																className="admin-coupon-input"
+																placeholder="Code coupon (ex: PROMO20)"
+																defaultValue={order.couponCode ?? ''}
+																id={`coupon-input-${order.orderId}`}
+															/>
+															<button
+																type="button"
+																className="admin-btn-ghost"
+																onClick={async () => {
+																	const input = document.getElementById(`coupon-input-${order.orderId}`);
+																	const code = (input?.value ?? '').trim().toUpperCase();
+																	try {
+																		const result = await applyAdminCoupon(order.orderId, code, token);
+																		const nextOrders = orders.map((o) => (o.orderId === order.orderId ? result.order : o));
+																		setOrders(nextOrders);
+																		setDrafts(createDrafts(nextOrders));
+																		const msg = code
+																			? `Coupon ${code} applique -- remise ${formatMoney(result.discountAmount)}`
+																			: 'Coupon supprime';
+																		setStatus({ type: 'success', message: msg });
+																	} catch (error) {
+																		if (error.status === 401) { handleUnauthorized(); return; }
+																		setStatus({ type: 'error', message: error.message });
+																	}
+																}}
+															>
+																Appliquer
+															</button>
+														</div>
+														{order.discountAmount > 0 && (
+															<span className="admin-coupon-current">
+																Remise actuelle : <strong>{order.couponCode}</strong> -- -{formatMoney(order.discountAmount)} - Solde : {formatMoney(order.packPrice - order.discountAmount)}
+															</span>
+														)}
+													</div>
+													<label className="admin-field admin-field-full">
+														<span>Notes admin</span>
+														<textarea rows="2" value={draft.adminNotes} onChange={(e) => updateDraft(order.orderId, 'adminNotes', e.target.value)} />
+													</label>
+													<label className="admin-field admin-field-full">
+														<span>Notes livraison</span>
+														<textarea rows="2" value={draft.deliveryNotes} onChange={(e) => updateDraft(order.orderId, 'deliveryNotes', e.target.value)} />
+													</label>
+												</div>
+
+												<div className="admin-order-footer">
+													{order.paymentUrl && (
+														<a href={order.paymentUrl} target="_blank" rel="noreferrer" className="admin-btn-ghost">
+															Lien paiement
+														</a>
+													)}
+													{order.paymentStatus !== 'paid' && (
 														<button
 															type="button"
 															className="admin-btn-ghost"
-															onClick={() => document.getElementById(`avatar-upload-${order.orderId}`)?.click()}
+															onClick={async () => {
+																try {
+																	setStatus({ type: 'info', message: 'Generation du lien de paiement...' });
+																	const result = await regeneratePaymentLink(order.orderId, token);
+																	const nextOrders = orders.map((o) => (o.orderId === order.orderId ? result.order : o));
+																	setOrders(nextOrders);
+																	setDrafts(createDrafts(nextOrders));
+																	setStatus({ type: 'success', message: `Nouveau lien genere. URL : ${result.paymentUrl}` });
+																} catch (error) {
+																	if (error.status === 401) { handleUnauthorized(); return; }
+																	setStatus({ type: 'error', message: error.message });
+																}
+															}}
 														>
-															Choisir photo
+															Generer lien paiement
 														</button>
-													</label>
-													<label className="admin-upload-label">
-														Logo entreprise
-														<input
-															type="file"
-															accept="image/jpeg,image/png,image/webp"
-															id={`logo-upload-${order.orderId}`}
-															style={{ display: 'none' }}
-														/>
-														<button
-															type="button"
-															className="admin-btn-ghost"
-															onClick={() => document.getElementById(`logo-upload-${order.orderId}`)?.click()}
-														>
-															Choisir logo
-														</button>
-													</label>
-													<button
-														type="button"
+													)}
+													<a
 														className="admin-btn-ghost"
-														onClick={async () => {
-															const avatarInput = document.getElementById(`avatar-upload-${order.orderId}`);
-															const logoInput = document.getElementById(`logo-upload-${order.orderId}`);
-															const avatarFile = avatarInput?.files?.[0] ?? null;
-															const logoFile = logoInput?.files?.[0] ?? null;
-															if (!avatarFile && !logoFile) {
-																setStatus({ type: 'error', message: 'Sélectionnez au moins une photo.' });
-																return;
-															}
-															try {
-																setStatus({ type: 'info', message: 'Envoi en cours...' });
-																const result = await uploadAdminAssets(order.orderId, { avatarFile, logoFile }, token);
-																const nextOrders = orders.map((o) => (o.orderId === order.orderId ? { ...o, assets: result.assets } : o));
-																setOrders(nextOrders);
-																setDrafts(createDrafts(nextOrders));
-																if (avatarInput) avatarInput.value = '';
-																if (logoInput) logoInput.value = '';
-																setStatus({ type: 'success', message: 'Photos mises à jour avec succès.' });
-															} catch (error) {
-																if (error.status === 401) { handleUnauthorized(); return; }
-																setStatus({ type: 'error', message: error.message });
-															}
+														href={`/api/admin/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`}
+														download
+														onClick={(e) => {
+															e.preventDefault();
+															fetch(`/api/admin/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`, {
+																headers: { 'x-admin-token': token },
+															})
+																.then((r) => { if (!r.ok) throw new Error('Erreur telechargement'); return r.blob(); })
+																.then((blob) => {
+																	const url = URL.createObjectURL(blob);
+																	const a = document.createElement('a');
+																	a.href = url;
+																	a.download = `recu-tekko-${order.orderId.slice(0, 8).toUpperCase()}.pdf`;
+																	a.click();
+																	URL.revokeObjectURL(url);
+																})
+																.catch(() => setStatus({ type: 'error', message: 'Erreur telechargement recu.' }));
 														}}
 													>
-														Envoyer
+														Recu PDF
+													</a>
+													{draft.orderStatus !== 'delivered' && draft.paymentStatus === 'paid' && (
+														<button type="button" className="admin-btn-deliver" onClick={() => markDelivered(order.orderId)}>
+															Marquer livree
+														</button>
+													)}
+													<button type="button" className="admin-btn-primary" onClick={() => saveOrder(order.orderId)}>
+														Enregistrer
 													</button>
 												</div>
 											</div>
-											<div className="admin-field admin-field-full admin-coupon-apply">
-												<span>Coupon</span>
-												<div className="admin-coupon-apply-row">
-													<input
-														type="text"
-														className="admin-coupon-input"
-														placeholder="Code coupon (ex: PROMO20)"
-														defaultValue={order.couponCode ?? ''}
-														id={`coupon-input-${order.orderId}`}
-													/>
-													<button
-														type="button"
-														className="admin-btn-ghost"
-														onClick={async () => {
-															const input = document.getElementById(`coupon-input-${order.orderId}`);
-															const code = (input?.value ?? '').trim().toUpperCase();
-															try {
-																const result = await applyAdminCoupon(order.orderId, code, token);
-																const nextOrders = orders.map((o) => (o.orderId === order.orderId ? result.order : o));
-																setOrders(nextOrders);
-																setDrafts(createDrafts(nextOrders));
-																const msg = code
-																	? `Coupon ${code} appliqué — remise ${formatMoney(result.discountAmount)}`
-																	: 'Coupon supprimé';
-																setStatus({ type: 'success', message: msg });
-															} catch (error) {
-																if (error.status === 401) { handleUnauthorized(); return; }
-																setStatus({ type: 'error', message: error.message });
-															}
-														}}
-													>
-														Appliquer
-													</button>
-												</div>
-												{order.discountAmount > 0 && (
-													<span className="admin-coupon-current">
-														Remise actuelle : <strong>{order.couponCode}</strong> → -{formatMoney(order.discountAmount)} · Solde : {formatMoney(order.packPrice - order.discountAmount)}
-													</span>
-												)}
-											</div>
-											<label className="admin-field admin-field-full">
-												<span>Notes admin</span>
-												<textarea rows="2" value={draft.adminNotes} onChange={(e) => updateDraft(order.orderId, 'adminNotes', e.target.value)} />
-											</label>
-											<label className="admin-field admin-field-full">
-												<span>Notes livraison</span>
-												<textarea rows="2" value={draft.deliveryNotes} onChange={(e) => updateDraft(order.orderId, 'deliveryNotes', e.target.value)} />
-											</label>
-										</div>
-
-										<div className="admin-order-footer">
-											{order.paymentUrl && (
-												<a href={order.paymentUrl} target="_blank" rel="noreferrer" className="admin-btn-ghost">
-													Lien paiement
-												</a>
-											)}
-											{order.paymentStatus !== 'paid' && (
-												<button
-													type="button"
-													className="admin-btn-ghost"
-													onClick={async () => {
-														try {
-															setStatus({ type: 'info', message: 'Génération du lien de paiement...' });
-															const result = await regeneratePaymentLink(order.orderId, token);
-															const nextOrders = orders.map((o) => (o.orderId === order.orderId ? result.order : o));
-															setOrders(nextOrders);
-															setDrafts(createDrafts(nextOrders));
-															setStatus({ type: 'success', message: `Nouveau lien généré. URL : ${result.paymentUrl}` });
-														} catch (error) {
-															if (error.status === 401) { handleUnauthorized(); return; }
-															setStatus({ type: 'error', message: error.message });
-														}
-													}}
-												>
-													Générer lien paiement
-												</button>
-											)}
-											<a
-												className="admin-btn-ghost"
-												href={`/api/admin/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`}
-												download
-												onClick={(e) => {
-													// Attach admin token via fetch instead of plain link
-													e.preventDefault();
-													fetch(`/api/admin/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`, {
-														headers: { 'x-admin-token': token },
-													})
-														.then((r) => { if (!r.ok) throw new Error('Erreur téléchargement'); return r.blob(); })
-														.then((blob) => {
-															const url = URL.createObjectURL(blob);
-															const a = document.createElement('a');
-															a.href = url;
-															a.download = `recu-tekko-${order.orderId.slice(0, 8).toUpperCase()}.pdf`;
-															a.click();
-															URL.revokeObjectURL(url);
-														})
-														.catch(() => setStatus({ type: 'error', message: 'Erreur téléchargement reçu.' }));
-												}}
-											>
-												Recu PDF
-											</a>
-											<button type="button" className="admin-btn-primary" onClick={() => saveOrder(order.orderId)}>
-												Enregistrer
-											</button>
-										</div>
+										)}
 									</article>
 								);
 							})}
