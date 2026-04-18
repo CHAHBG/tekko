@@ -155,3 +155,15 @@ export function uploadAdminAssets(orderId, { avatarFile, logoFile }, token) {
     body: form,
   });
 }
+
+export function fetchAdminAnalytics(period, token) {
+  return request(`/admin/analytics?period=${encodeURIComponent(period)}`, {
+    headers: { 'x-admin-token': token },
+  });
+}
+
+export function fetchAdminAnalyticsVisits(token, limit) {
+  return request(`/admin/analytics/visits?limit=${limit ?? 100}`, {
+    headers: { 'x-admin-token': token },
+  });
+}

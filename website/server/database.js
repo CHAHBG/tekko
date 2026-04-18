@@ -126,6 +126,35 @@ export function createDatabase({ databasePath }) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS visit_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visited_at TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'page',
+      path TEXT NOT NULL,
+      slug TEXT,
+      host TEXT NOT NULL DEFAULT '',
+      referrer TEXT NOT NULL DEFAULT '',
+      user_agent TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      browser_version TEXT NOT NULL DEFAULT '',
+      os TEXT NOT NULL DEFAULT '',
+      os_version TEXT NOT NULL DEFAULT '',
+      device_type TEXT NOT NULL DEFAULT 'desktop',
+      ip_raw TEXT NOT NULL DEFAULT '',
+      ip_hash TEXT NOT NULL DEFAULT '',
+      country_code TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      region TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      language TEXT NOT NULL DEFAULT '',
+      screen TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_visits_visited_at ON visit_events(visited_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_visits_ip_hash ON visit_events(ip_hash);
+    CREATE INDEX IF NOT EXISTS idx_visits_slug ON visit_events(slug);
+    CREATE INDEX IF NOT EXISTS idx_visits_kind ON visit_events(kind);
   `);
 
   // Migrate existing orders table to add coupon columns if needed
@@ -199,6 +228,18 @@ export function createDatabase({ databasePath }) {
   const selectOrderBySlug = database.prepare('SELECT * FROM orders WHERE slug = ?');
   const selectAllOrders = database.prepare('SELECT * FROM orders ORDER BY datetime(created_at) DESC');
   const selectSlug = database.prepare('SELECT slug FROM orders WHERE slug = ?');
+
+  const insertVisit = database.prepare(`
+    INSERT INTO visit_events (
+      visited_at, kind, path, slug, host, referrer, user_agent,
+      browser, browser_version, os, os_version, device_type,
+      ip_raw, ip_hash, country_code, country, region, city, language, screen
+    ) VALUES (
+      @visitedAt, @kind, @path, @slug, @host, @referrer, @userAgent,
+      @browser, @browserVersion, @os, @osVersion, @deviceType,
+      @ipRaw, @ipHash, @countryCode, @country, @region, @city, @language, @screen
+    )
+  `);
 
   const selectInventory = database.prepare('SELECT * FROM inventory');
   const upsertInventoryItem = database.prepare(`
@@ -473,6 +514,131 @@ export function createDatabase({ databasePath }) {
         UPDATE ceremonies SET status = ?, admin_notes = ?, updated_at = ? WHERE id = ?
       `).run(status, adminNotes ?? '', new Date().toISOString(), id);
       return this.getCeremonyById(id);
+    },
+
+    // ── VISIT ANALYTICS ─────────────────────────────────────
+    insertVisit(payload) {
+      insertVisit.run(payload);
+    },
+
+    getLastVisitByIpHashPath(ipHash, path, windowMs) {
+      const cutoff = new Date(Date.now() - windowMs).toISOString();
+      return database
+        .prepare('SELECT id FROM visit_events WHERE ip_hash = ? AND path = ? AND visited_at > ?')
+        .get(ipHash, path, cutoff);
+    },
+
+    getVisitSummary(since) {
+      return database.prepare(`
+        SELECT
+          COUNT(*) AS totalVisits,
+          COUNT(DISTINCT ip_hash) AS uniqueVisitors,
+          SUM(CASE WHEN kind = 'card' THEN 1 ELSE 0 END) AS cardViews,
+          SUM(CASE WHEN kind != 'card' THEN 1 ELSE 0 END) AS pageViews
+        FROM visit_events WHERE visited_at >= ?
+      `).get(since);
+    },
+
+    getVisitTimeSeries(since) {
+      return database.prepare(`
+        SELECT DATE(visited_at) AS date,
+               COUNT(*) AS visits,
+               COUNT(DISTINCT ip_hash) AS unique
+        FROM visit_events
+        WHERE visited_at >= ?
+        GROUP BY DATE(visited_at)
+        ORDER BY date ASC
+      `).all(since);
+    },
+
+    getTopPages(since, limit) {
+      return database.prepare(`
+        SELECT path, slug, kind, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ?
+        GROUP BY path
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 20);
+    },
+
+    getVisitCountries(since, limit) {
+      return database.prepare(`
+        SELECT country_code AS code, country, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND country_code != ''
+        GROUP BY country_code
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 20);
+    },
+
+    getVisitCities(since, limit) {
+      return database.prepare(`
+        SELECT city, region, country, country_code, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND city != ''
+        GROUP BY city, country
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 20);
+    },
+
+    getVisitDevices(since) {
+      return database.prepare(`
+        SELECT device_type AS deviceType, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ?
+        GROUP BY device_type
+        ORDER BY visits DESC
+      `).all(since);
+    },
+
+    getVisitBrowsers(since, limit) {
+      return database.prepare(`
+        SELECT browser, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND browser != ''
+        GROUP BY browser
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 10);
+    },
+
+    getVisitOs(since, limit) {
+      return database.prepare(`
+        SELECT os, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND os != ''
+        GROUP BY os
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 10);
+    },
+
+    getVisitReferrers(since, limit) {
+      return database.prepare(`
+        SELECT referrer, COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND referrer != ''
+        GROUP BY referrer
+        ORDER BY visits DESC
+        LIMIT ?
+      `).all(since, limit ?? 20);
+    },
+
+    getRecentVisits(limit) {
+      return database.prepare(`
+        SELECT id, visited_at AS visitedAt, kind, path, slug, host,
+               referrer, browser, browser_version AS browserVersion,
+               os, os_version AS osVersion, device_type AS deviceType,
+               ip_raw AS ipRaw, ip_hash AS ipHash,
+               country_code AS countryCode, country, region, city,
+               language, screen
+        FROM visit_events
+        ORDER BY visited_at DESC
+        LIMIT ?
+      `).all(limit ?? 100);
     },
   };
 }

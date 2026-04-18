@@ -21,6 +21,21 @@ function App() {
     // PublicCardView sets its own title when the card loads
   }, [currentPath]);
 
+  // ── Visitor tracking beacon ─────────────────────────────────
+  useEffect(() => {
+    // Skip admin pages and payment callbacks — those are not real visitor events
+    if (currentPath.startsWith('/admin') || currentPath.startsWith('/payment')) return;
+    fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: currentPath,
+        referrer: document.referrer,
+        screen: `${window.screen.width}x${window.screen.height}`,
+      }),
+    }).catch(() => {});
+  }, [currentPath]);
+
   if (currentPath.startsWith('/admin')) {
     return <AdminView />;
   }

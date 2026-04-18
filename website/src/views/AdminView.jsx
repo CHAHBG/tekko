@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchAdminOrders, updateAdminOrder, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets } from '../lib/api';
+import { fetchAdminOrders, updateAdminOrder, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
 import { formatMoney, getAssetDisplayUrl, materialCatalog, foilCatalog } from '../lib/catalog';
 
 function createDrafts(orders) {
@@ -42,6 +42,60 @@ function IconLogout() {
 			<polyline points="16 17 21 12 16 7" />
 			<line x1="21" y1="12" x2="9" y2="12" />
 		</svg>
+	);
+}
+
+function countryFlag(code) {
+	if (!code || code.length !== 2) return '🌍';
+	try {
+		return String.fromCodePoint(
+			0x1F1E6 + code.toUpperCase().charCodeAt(0) - 65,
+			0x1F1E6 + code.toUpperCase().charCodeAt(1) - 65,
+		);
+	} catch { return '🌍'; }
+}
+
+function deviceLabel(type) {
+	const map = { desktop: '🖥 Desktop', mobile: '📱 Mobile', tablet: '📐 Tablette' };
+	return map[type] || type || '—';
+}
+
+function AnalyticsBarList({ items }) {
+	if (!items?.length) return <div className="analytics-empty">Aucune donnée</div>;
+	const max = Math.max(...items.map((i) => i.visits), 1);
+	return (
+		<div>
+			{items.slice(0, 10).map((item, i) => (
+				<div key={i} className="analytics-bar-row">
+					<span className="analytics-bar-label" title={item.label}>{item.label || 'Inconnu'}</span>
+					<div className="analytics-bar-track">
+						<div className="analytics-bar-fill" style={{ width: `${Math.max(2, (item.visits / max) * 100)}%` }} />
+					</div>
+					<span className="analytics-bar-count">{item.visits}</span>
+				</div>
+			))}
+		</div>
+	);
+}
+
+function TimeSeriesChart({ data }) {
+	if (!data?.length) return <div className="analytics-empty">Aucune donnée</div>;
+	const max = Math.max(...data.map((d) => d.visits), 1);
+	return (
+		<div className="analytics-timeseries">
+			{data.map((day) => (
+				<div key={day.date} className="analytics-ts-day">
+					<div className="analytics-ts-bar-wrap">
+						<div
+							className="analytics-ts-bar"
+							style={{ height: `${Math.max(2, (day.visits / max) * 100)}%` }}
+							title={`${day.date}: ${day.visits} visites, ${day.unique} uniques`}
+						/>
+					</div>
+					<span className="analytics-ts-label">{day.date.slice(5)}</span>
+				</div>
+			))}
+		</div>
 	);
 }
 
@@ -147,6 +201,12 @@ export function AdminView() {
 			.then((d) => setInventory(d.inventory ?? {}))
 			.catch(() => {});
 	}, []);
+
+	useEffect(() => {
+		if (token && activeTab === 'analytics') {
+			loadAnalytics(token, analyticsPeriod);
+		}
+	}, [token, activeTab, analyticsPeriod]);
 
 	async function toggleInventory(type, key, currentlyInStock) {
 		setInventorySaving(true);
@@ -273,6 +333,22 @@ export function AdminView() {
 		setInvoiceItems([{ description: '', quantity: 1, unitPrice: 0 }]);
 		setInvoiceResult(null);
 		setInvoiceError('');
+	}
+
+	async function loadAnalytics(currentToken, period) {
+		setAnalyticsLoading(true);
+		try {
+			const [data, visitsData] = await Promise.all([
+				fetchAdminAnalytics(period, currentToken),
+				fetchAdminAnalyticsVisits(currentToken, 100),
+			]);
+			setAnalytics(data);
+			setAnalyticsVisits(visitsData.visits ?? []);
+		} catch (error) {
+			if (error.status === 401) { handleUnauthorized(); return; }
+		} finally {
+			setAnalyticsLoading(false);
+		}
 	}
 
 	function updateDraft(orderId, field, value) {
@@ -1253,7 +1329,162 @@ export function AdminView() {
 						)}
 					</div>
 				)}
-			</div>
+
+				{/* ── ANALYTICS TAB ──────────────────────────────── */}
+			{activeTab === 'analytics' && (
+				<div className="admin-analytics-section">
+					<div className="analytics-toolbar">
+						<div className="analytics-period-bar">
+							{[['24h', '24 heures'], ['7d', '7 jours'], ['30d', '30 jours'], ['90d', '90 jours']].map(([val, lbl]) => (
+								<button
+									key={val}
+									type="button"
+									className={`analytics-period-btn${analyticsPeriod === val ? ' active' : ''}`}
+									onClick={() => setAnalyticsPeriod(val)}
+								>
+									{lbl}
+								</button>
+							))}
+						</div>
+						<button type="button" className="admin-header-link" onClick={() => loadAnalytics(token, analyticsPeriod)}>
+							<IconRefresh /> Rafraîchir
+						</button>
+					</div>
+
+					{analyticsLoading && <div className="admin-empty">Chargement des analytics…</div>}
+
+					{!analyticsLoading && analytics && (
+						<>
+							{/* Summary stats */}
+							<div className="analytics-stats-row">
+								<div className="analytics-stat">
+									<span className="analytics-stat-label">Visites totales</span>
+									<strong className="analytics-stat-value">{analytics.summary?.totalVisits ?? 0}</strong>
+								</div>
+								<div className="analytics-stat">
+									<span className="analytics-stat-label">Visiteurs uniques</span>
+									<strong className="analytics-stat-value analytics-accent">{analytics.summary?.uniqueVisitors ?? 0}</strong>
+								</div>
+								<div className="analytics-stat">
+									<span className="analytics-stat-label">Vues de cartes NFC</span>
+									<strong className="analytics-stat-value">{analytics.summary?.cardViews ?? 0}</strong>
+								</div>
+								<div className="analytics-stat">
+									<span className="analytics-stat-label">Vues de pages</span>
+									<strong className="analytics-stat-value">{analytics.summary?.pageViews ?? 0}</strong>
+								</div>
+							</div>
+
+							{/* Time series */}
+							{analytics.timeSeries?.length > 0 && (
+								<div className="analytics-chart-card analytics-chart-full">
+									<h3 className="analytics-chart-title">Visites par jour</h3>
+									<TimeSeriesChart data={analytics.timeSeries} />
+								</div>
+							)}
+
+							{/* Charts grid */}
+							<div className="analytics-charts-grid">
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">🌍 Pays</h3>
+									<AnalyticsBarList items={analytics.countries?.map((c) => ({ label: `${countryFlag(c.code)} ${c.country || c.code}`, visits: c.visits }))} />
+								</div>
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">🏙 Villes</h3>
+									<AnalyticsBarList items={analytics.cities?.map((c) => ({ label: `${c.city}${c.country ? ', ' + c.country : ''}`, visits: c.visits }))} />
+								</div>
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">📱 Appareils</h3>
+									<AnalyticsBarList items={analytics.devices?.map((d) => ({ label: deviceLabel(d.deviceType), visits: d.visits }))} />
+								</div>
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">🌐 Navigateurs</h3>
+									<AnalyticsBarList items={analytics.browsers?.map((b) => ({ label: b.browser, visits: b.visits }))} />
+								</div>
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">💻 Systèmes (OS)</h3>
+									<AnalyticsBarList items={analytics.os?.map((o) => ({ label: o.os, visits: o.visits }))} />
+								</div>
+								<div className="analytics-chart-card">
+									<h3 className="analytics-chart-title">🔗 Référents</h3>
+									<AnalyticsBarList items={analytics.referrers?.map((r) => ({ label: r.referrer || 'Direct', visits: r.visits }))} />
+								</div>
+							</div>
+
+							{/* Top pages */}
+							{analytics.topPages?.length > 0 && (
+								<div className="analytics-chart-card analytics-chart-full">
+									<h3 className="analytics-chart-title">Top pages &amp; cartes</h3>
+									<div className="analytics-table-wrap">
+										<table className="analytics-table">
+											<thead><tr><th>Page</th><th>Type</th><th>Visites</th></tr></thead>
+											<tbody>
+												{analytics.topPages.slice(0, 15).map((page, i) => (
+													<tr key={i}>
+														<td className="analytics-path-cell">
+															{page.slug
+																? <a href={`/c/${page.slug}`} target="_blank" rel="noreferrer">{page.path}</a>
+																: page.path}
+														</td>
+														<td><span className={`analytics-kind-badge analytics-kind-${page.kind}`}>{page.kind}</span></td>
+														<td><strong>{page.visits}</strong></td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								</div>
+							)}
+						</>
+					)}
+
+					{/* Recent visits raw table */}
+					{analyticsVisits.length > 0 && (
+						<div className="analytics-chart-card analytics-chart-full">
+							<h3 className="analytics-chart-title">Visites récentes ({analyticsVisits.length})</h3>
+							<div className="analytics-table-wrap">
+								<table className="analytics-table analytics-visits-table">
+									<thead>
+										<tr>
+											<th>Date</th>
+											<th>Page</th>
+											<th>Pays</th>
+											<th>Ville</th>
+											<th>Appareil</th>
+											<th>Navigateur</th>
+											<th>OS</th>
+											<th>Écran</th>
+											<th>IP</th>
+											<th>Référent</th>
+										</tr>
+									</thead>
+									<tbody>
+										{analyticsVisits.map((v, i) => (
+											<tr key={i}>
+												<td className="analytics-date-cell">{new Date(v.visitedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+												<td className="analytics-path-cell">{v.path}</td>
+												<td>{v.countryCode ? `${countryFlag(v.countryCode)} ${v.country}` : '—'}</td>
+												<td>{v.city || '—'}</td>
+												<td>{deviceLabel(v.deviceType)}</td>
+												<td>{v.browser || '—'}</td>
+												<td>{v.os || '—'}</td>
+												<td>{v.screen || '—'}</td>
+												<td className="analytics-ip-cell">{v.ipRaw || '—'}</td>
+												<td>{v.referrer || 'Direct'}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					)}
+
+					{!analyticsLoading && !analytics && (
+						<div className="admin-empty">Cliquez sur Rafraîchir pour charger les analytics.</div>
+					)}
+				</div>
+			)}
 		</div>
+	</div>
 	);
 }

@@ -23,6 +23,7 @@ import {
 import { sendOrderConfirmationEmail } from './email.js';
 import { generateReceiptPdf } from './pdf-receipt.js';
 import { generateInvoicePdf } from './pdf-invoice.js';
+import { buildVisitPayload } from './analytics.js';
 
 dotenv.config();
 
@@ -163,6 +164,12 @@ const couponLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de vérifications de coupons. Réessayez plus tard.' },
+});
+const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/', apiLimiter);
 
@@ -1035,6 +1042,61 @@ app.post(
     });
   }),
 );
+
+// ── ANALYTICS: public beacon ────────────────────────────────────────
+app.post('/api/track', trackLimiter, (request, response) => {
+  try {
+    const body = request.body ?? {};
+    const payload = buildVisitPayload(request, {
+      path: body.path,
+      referrer: body.referrer,
+      screen: body.screen,
+    });
+    // Dedup: ignore if same visitor hit the same page within the last 30 seconds
+    const recent = database.getLastVisitByIpHashPath(payload.ipHash, payload.path, 30 * 1000);
+    if (!recent) {
+      database.insertVisit(payload);
+    }
+  } catch (err) {
+    console.error('[Track] Error:', err.message);
+  }
+  // Always respond 200 — tracking must never break the app
+  response.json({ ok: true });
+});
+
+function getSincePeriod(period) {
+  const d = new Date();
+  if (period === '24h') d.setHours(d.getHours() - 24);
+  else if (period === '30d') d.setDate(d.getDate() - 30);
+  else if (period === '90d') d.setDate(d.getDate() - 90);
+  else d.setDate(d.getDate() - 7); // default 7d
+  return d.toISOString();
+}
+
+// ── ANALYTICS: admin summary (aggregates) ─────────────────────────
+app.get('/api/admin/analytics', requireAdmin, (request, response) => {
+  const VALID = ['24h', '7d', '30d', '90d'];
+  const period = VALID.includes(request.query.period) ? request.query.period : '7d';
+  const since = getSincePeriod(period);
+  response.json({
+    period,
+    summary: database.getVisitSummary(since),
+    timeSeries: database.getVisitTimeSeries(since),
+    topPages: database.getTopPages(since, 20),
+    countries: database.getVisitCountries(since, 20),
+    cities: database.getVisitCities(since, 20),
+    devices: database.getVisitDevices(since),
+    browsers: database.getVisitBrowsers(since, 10),
+    os: database.getVisitOs(since, 10),
+    referrers: database.getVisitReferrers(since, 20),
+  });
+});
+
+// ── ANALYTICS: admin raw visit log ────────────────────────────────
+app.get('/api/admin/analytics/visits', requireAdmin, (request, response) => {
+  const limit = Math.min(Number(request.query.limit) || 100, 500);
+  response.json({ visits: database.getRecentVisits(limit) });
+});
 
 if (fs.existsSync(distDir)) {
   // Assets (hashed filenames) get long cache; index.html is served by the catch-all below
