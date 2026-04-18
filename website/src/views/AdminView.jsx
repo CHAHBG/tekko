@@ -512,6 +512,13 @@ export function AdminView() {
 					>
 						Factures
 					</button>
+					<button
+						type="button"
+						className={`admin-tab${activeTab === 'analytics' ? ' active' : ''}`}
+						onClick={() => setActiveTab('analytics')}
+					>
+						📊 Analytics
+					</button>
 				</div>
 
 				{/* ── ORDERS TAB ─────────────────────────────────────── */}
