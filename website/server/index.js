@@ -1089,6 +1089,7 @@ app.get('/api/admin/analytics', requireAdmin, (request, response) => {
     browsers: database.getVisitBrowsers(since, 10),
     os: database.getVisitOs(since, 10),
     referrers: database.getVisitReferrers(since, 20),
+    locations: database.getVisitLocations(since),
   });
 });
 

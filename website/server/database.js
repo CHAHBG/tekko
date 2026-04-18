@@ -148,7 +148,9 @@ export function createDatabase({ databasePath }) {
       region TEXT NOT NULL DEFAULT '',
       city TEXT NOT NULL DEFAULT '',
       language TEXT NOT NULL DEFAULT '',
-      screen TEXT NOT NULL DEFAULT ''
+      screen TEXT NOT NULL DEFAULT '',
+      latitude REAL,
+      longitude REAL
     );
 
     CREATE INDEX IF NOT EXISTS idx_visits_visited_at ON visit_events(visited_at DESC);
@@ -156,6 +158,15 @@ export function createDatabase({ databasePath }) {
     CREATE INDEX IF NOT EXISTS idx_visits_slug ON visit_events(slug);
     CREATE INDEX IF NOT EXISTS idx_visits_kind ON visit_events(kind);
   `);
+
+  // Migrate visit_events to add lat/lng if missing
+  const visitCols = database.prepare("PRAGMA table_info(visit_events)").all().map(c => c.name);
+  if (!visitCols.includes('latitude')) {
+    database.exec('ALTER TABLE visit_events ADD COLUMN latitude REAL');
+  }
+  if (!visitCols.includes('longitude')) {
+    database.exec('ALTER TABLE visit_events ADD COLUMN longitude REAL');
+  }
 
   // Migrate existing orders table to add coupon columns if needed
   const orderCols = database.prepare("PRAGMA table_info(orders)").all().map(c => c.name);
@@ -233,11 +244,13 @@ export function createDatabase({ databasePath }) {
     INSERT INTO visit_events (
       visited_at, kind, path, slug, host, referrer, user_agent,
       browser, browser_version, os, os_version, device_type,
-      ip_raw, ip_hash, country_code, country, region, city, language, screen
+      ip_raw, ip_hash, country_code, country, region, city, language, screen,
+      latitude, longitude
     ) VALUES (
       @visitedAt, @kind, @path, @slug, @host, @referrer, @userAgent,
       @browser, @browserVersion, @os, @osVersion, @deviceType,
-      @ipRaw, @ipHash, @countryCode, @country, @region, @city, @language, @screen
+      @ipRaw, @ipHash, @countryCode, @country, @region, @city, @language, @screen,
+      @latitude, @longitude
     )
   `);
 
@@ -634,11 +647,24 @@ export function createDatabase({ databasePath }) {
                os, os_version AS osVersion, device_type AS deviceType,
                ip_raw AS ipRaw, ip_hash AS ipHash,
                country_code AS countryCode, country, region, city,
-               language, screen
+               language, screen, latitude, longitude
         FROM visit_events
         ORDER BY visited_at DESC
         LIMIT ?
       `).all(limit ?? 100);
+    },
+
+    getVisitLocations(since) {
+      return database.prepare(`
+        SELECT latitude AS lat, longitude AS lng,
+               city, country, country_code AS countryCode,
+               COUNT(*) AS visits
+        FROM visit_events
+        WHERE visited_at >= ? AND latitude IS NOT NULL AND longitude IS NOT NULL
+        GROUP BY ROUND(latitude, 2), ROUND(longitude, 2)
+        ORDER BY visits DESC
+        LIMIT 200
+      `).all(since);
     },
   };
 }

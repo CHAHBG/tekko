@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAdminOrders, updateAdminOrder, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
 import { formatMoney, getAssetDisplayUrl, materialCatalog, foilCatalog } from '../lib/catalog';
 
@@ -46,18 +46,18 @@ function IconLogout() {
 }
 
 function countryFlag(code) {
-	if (!code || code.length !== 2) return '🌍';
+	if (!code || code.length !== 2) return '';
 	try {
 		return String.fromCodePoint(
 			0x1F1E6 + code.toUpperCase().charCodeAt(0) - 65,
 			0x1F1E6 + code.toUpperCase().charCodeAt(1) - 65,
 		);
-	} catch { return '🌍'; }
+	} catch { return ''; }
 }
 
 function deviceLabel(type) {
-	const map = { desktop: '🖥 Desktop', mobile: '📱 Mobile', tablet: '📐 Tablette' };
-	return map[type] || type || '—';
+	const map = { desktop: 'Desktop', mobile: 'Mobile', tablet: 'Tablette' };
+	return map[type] || type || '---';
 }
 
 function AnalyticsBarList({ items }) {
@@ -79,7 +79,7 @@ function AnalyticsBarList({ items }) {
 }
 
 function TimeSeriesChart({ data }) {
-	if (!data?.length) return <div className="analytics-empty">Aucune donnée</div>;
+	if (!data?.length) return <div className="analytics-empty">Aucune donnee</div>;
 	const max = Math.max(...data.map((d) => d.visits), 1);
 	return (
 		<div className="analytics-timeseries">
@@ -97,6 +97,155 @@ function TimeSeriesChart({ data }) {
 			))}
 		</div>
 	);
+}
+
+function IconGlobe() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<path d="M2 12h20" />
+			<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+		</svg>
+	);
+}
+
+function IconBuilding() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+			<path d="M9 22v-4h6v4" />
+			<path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
+		</svg>
+	);
+}
+
+function IconMonitor() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+			<line x1="8" y1="21" x2="16" y2="21" />
+			<line x1="12" y1="17" x2="12" y2="21" />
+		</svg>
+	);
+}
+
+function IconBrowser() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<circle cx="12" cy="12" r="4" />
+			<line x1="21.17" y1="8" x2="12" y2="8" />
+			<line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+			<line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+		</svg>
+	);
+}
+
+function IconCpu() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+			<rect x="9" y="9" width="6" height="6" />
+			<line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
+			<line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
+			<line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
+			<line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
+		</svg>
+	);
+}
+
+function IconLink() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+			<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+		</svg>
+	);
+}
+
+function IconMap() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+			<line x1="8" y1="2" x2="8" y2="18" />
+			<line x1="16" y1="6" x2="16" y2="22" />
+		</svg>
+	);
+}
+
+function VisitorMap({ locations }) {
+	const mapRef = useRef(null);
+	const mapInstanceRef = useRef(null);
+
+	useEffect(() => {
+		if (!mapRef.current || !locations?.length) return;
+
+		let cancelled = false;
+
+		import('leaflet').then((L) => {
+			if (cancelled) return;
+
+			// Destroy previous map instance
+			if (mapInstanceRef.current) {
+				mapInstanceRef.current.remove();
+				mapInstanceRef.current = null;
+			}
+
+			const map = L.map(mapRef.current, {
+				scrollWheelZoom: false,
+				zoomControl: true,
+				attributionControl: false,
+			}).setView([14.7, -17.5], 3);
+
+			L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+				maxZoom: 18,
+			}).addTo(map);
+
+			const maxVisits = Math.max(...locations.map((l) => l.visits), 1);
+			for (const loc of locations) {
+				const radius = Math.max(5, Math.min(20, (loc.visits / maxVisits) * 20));
+				L.circleMarker([loc.lat, loc.lng], {
+					radius,
+					fillColor: '#e85d26',
+					color: '#e85d26',
+					weight: 1,
+					opacity: 0.8,
+					fillOpacity: 0.5,
+				})
+					.bindPopup(
+						`<strong>${loc.city || 'Inconnu'}${loc.country ? ', ' + loc.country : ''}</strong><br/>${loc.visits} visite${loc.visits > 1 ? 's' : ''}`
+					)
+					.addTo(map);
+			}
+
+			// Fit bounds to markers
+			if (locations.length > 1) {
+				const bounds = L.latLngBounds(locations.map((l) => [l.lat, l.lng]));
+				map.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+			}
+
+			mapInstanceRef.current = map;
+		});
+
+		return () => {
+			cancelled = true;
+			if (mapInstanceRef.current) {
+				mapInstanceRef.current.remove();
+				mapInstanceRef.current = null;
+			}
+		};
+	}, [locations]);
+
+	if (!locations?.length) {
+		return (
+			<div className="analytics-map-empty">
+				<IconMap />
+				<span>Aucune donnee de localisation disponible</span>
+			</div>
+		);
+	}
+
+	return <div ref={mapRef} className="analytics-map" />;
 }
 
 export function AdminView() {
@@ -517,7 +666,7 @@ export function AdminView() {
 						className={`admin-tab${activeTab === 'analytics' ? ' active' : ''}`}
 						onClick={() => setActiveTab('analytics')}
 					>
-						📊 Analytics
+						Analytics
 					</button>
 				</div>
 
@@ -588,7 +737,7 @@ export function AdminView() {
 												<strong className="admin-order-price">{formatMoney(order.packPrice)}</strong>
 												{order.discountAmount > 0 && (
 													<span className="admin-coupon-badge">
-														🏷 {order.couponCode} -{formatMoney(order.discountAmount)}
+														{order.couponCode} -{formatMoney(order.discountAmount)}
 													</span>
 												)}
 												<span className="admin-order-date">
@@ -596,10 +745,10 @@ export function AdminView() {
 												</span>
 												<span className={`admin-pay-badge admin-pay-${draft.paymentStatus}`}>{draft.paymentStatus}</span>
 												{draft.orderStatus === 'delivered' && (
-													<span className="admin-pay-badge admin-pay-delivered">✓ Livrée</span>
+													<span className="admin-pay-badge admin-pay-delivered">Livrée</span>
 												)}
 												{draft.orderStatus !== 'delivered' && draft.paymentStatus === 'paid' && (
-													<span className="admin-pay-badge admin-pay-pending-delivery">⏳ À livrer</span>
+													<span className="admin-pay-badge admin-pay-pending-delivery">A livrer</span>
 												)}
 											</div>
 										</div>
@@ -941,7 +1090,7 @@ export function AdminView() {
 										<div className="admin-order-footer">
 											{order.paymentUrl && (
 												<a href={order.paymentUrl} target="_blank" rel="noreferrer" className="admin-btn-ghost">
-													🔗 Lien paiement
+													Lien paiement
 												</a>
 											)}
 											{order.paymentStatus !== 'paid' && (
@@ -962,7 +1111,7 @@ export function AdminView() {
 														}
 													}}
 												>
-													💳 Générer lien paiement
+													Générer lien paiement
 												</button>
 											)}
 											<a
@@ -987,7 +1136,7 @@ export function AdminView() {
 														.catch(() => setStatus({ type: 'error', message: 'Erreur téléchargement reçu.' }));
 												}}
 											>
-												📄 Reçu PDF
+												Recu PDF
 											</a>
 											<button type="button" className="admin-btn-primary" onClick={() => saveOrder(order.orderId)}>
 												Enregistrer
@@ -1202,7 +1351,7 @@ export function AdminView() {
 						<h2>Générer une Facture</h2>
 						{invoiceResult ? (
 							<div style={{ background: '#f0fff0', border: '1px solid #4caf50', borderRadius: '10px', padding: '1.5rem', marginTop: '1rem' }}>
-								<h3 style={{ color: '#2e7d32', marginBottom: '.8rem' }}>✓ Facture générée — {invoiceResult.invoiceId}</h3>
+								<h3 style={{ color: '#2e7d32', marginBottom: '.8rem' }}>Facture generee -- {invoiceResult.invoiceId}</h3>
 								<p style={{ fontSize: '.9rem', marginBottom: '.6rem' }}>
 									<strong>Total :</strong> {new Intl.NumberFormat('fr-FR').format(invoiceResult.total)} FCFA
 								</p>
@@ -1360,11 +1509,11 @@ export function AdminView() {
 							))}
 						</div>
 						<button type="button" className="admin-header-link" onClick={() => loadAnalytics(token, analyticsPeriod)}>
-							<IconRefresh /> Rafraîchir
+							<IconRefresh /> Rafraichir
 						</button>
 					</div>
 
-					{analyticsLoading && <div className="admin-empty">Chargement des analytics…</div>}
+					{analyticsLoading && <div className="admin-empty">Chargement des analytics...</div>}
 
 					{!analyticsLoading && analytics && (
 						<>
@@ -1388,6 +1537,12 @@ export function AdminView() {
 								</div>
 							</div>
 
+							{/* Visitor map */}
+							<div className="analytics-chart-card analytics-chart-full">
+								<h3 className="analytics-chart-title"><IconMap /> Carte des visiteurs</h3>
+								<VisitorMap locations={analytics.locations} />
+							</div>
+
 							{/* Time series */}
 							{analytics.timeSeries?.length > 0 && (
 								<div className="analytics-chart-card analytics-chart-full">
@@ -1399,27 +1554,27 @@ export function AdminView() {
 							{/* Charts grid */}
 							<div className="analytics-charts-grid">
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">🌍 Pays</h3>
+									<h3 className="analytics-chart-title"><IconGlobe /> Pays</h3>
 									<AnalyticsBarList items={analytics.countries?.map((c) => ({ label: `${countryFlag(c.code)} ${c.country || c.code}`, visits: c.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">🏙 Villes</h3>
+									<h3 className="analytics-chart-title"><IconBuilding /> Villes</h3>
 									<AnalyticsBarList items={analytics.cities?.map((c) => ({ label: `${c.city}${c.country ? ', ' + c.country : ''}`, visits: c.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">📱 Appareils</h3>
+									<h3 className="analytics-chart-title"><IconMonitor /> Appareils</h3>
 									<AnalyticsBarList items={analytics.devices?.map((d) => ({ label: deviceLabel(d.deviceType), visits: d.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">🌐 Navigateurs</h3>
+									<h3 className="analytics-chart-title"><IconBrowser /> Navigateurs</h3>
 									<AnalyticsBarList items={analytics.browsers?.map((b) => ({ label: b.browser, visits: b.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">💻 Systèmes (OS)</h3>
+									<h3 className="analytics-chart-title"><IconCpu /> Systemes (OS)</h3>
 									<AnalyticsBarList items={analytics.os?.map((o) => ({ label: o.os, visits: o.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title">🔗 Référents</h3>
+									<h3 className="analytics-chart-title"><IconLink /> Referents</h3>
 									<AnalyticsBarList items={analytics.referrers?.map((r) => ({ label: r.referrer || 'Direct', visits: r.visits }))} />
 								</div>
 							</div>
@@ -1427,7 +1582,7 @@ export function AdminView() {
 							{/* Top pages */}
 							{analytics.topPages?.length > 0 && (
 								<div className="analytics-chart-card analytics-chart-full">
-									<h3 className="analytics-chart-title">Top pages &amp; cartes</h3>
+									<h3 className="analytics-chart-title">Top pages et cartes</h3>
 									<div className="analytics-table-wrap">
 										<table className="analytics-table">
 											<thead><tr><th>Page</th><th>Type</th><th>Visites</th></tr></thead>
@@ -1454,7 +1609,7 @@ export function AdminView() {
 					{/* Recent visits raw table */}
 					{analyticsVisits.length > 0 && (
 						<div className="analytics-chart-card analytics-chart-full">
-							<h3 className="analytics-chart-title">Visites récentes ({analyticsVisits.length})</h3>
+							<h3 className="analytics-chart-title">Visites recentes ({analyticsVisits.length})</h3>
 							<div className="analytics-table-wrap">
 								<table className="analytics-table analytics-visits-table">
 									<thead>
@@ -1466,9 +1621,8 @@ export function AdminView() {
 											<th>Appareil</th>
 											<th>Navigateur</th>
 											<th>OS</th>
-											<th>Écran</th>
-											<th>IP</th>
-											<th>Référent</th>
+											<th>Ecran</th>
+											<th>Referent</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -1476,13 +1630,12 @@ export function AdminView() {
 											<tr key={i}>
 												<td className="analytics-date-cell">{new Date(v.visitedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
 												<td className="analytics-path-cell">{v.path}</td>
-												<td>{v.countryCode ? `${countryFlag(v.countryCode)} ${v.country}` : '—'}</td>
-												<td>{v.city || '—'}</td>
+												<td>{v.countryCode ? `${countryFlag(v.countryCode)} ${v.country}` : '---'}</td>
+												<td>{v.city || '---'}</td>
 												<td>{deviceLabel(v.deviceType)}</td>
-												<td>{v.browser || '—'}</td>
-												<td>{v.os || '—'}</td>
-												<td>{v.screen || '—'}</td>
-												<td className="analytics-ip-cell">{v.ipRaw || '—'}</td>
+												<td>{v.browser || '---'}</td>
+												<td>{v.os || '---'}</td>
+												<td>{v.screen || '---'}</td>
 												<td>{v.referrer || 'Direct'}</td>
 											</tr>
 										))}
@@ -1493,7 +1646,7 @@ export function AdminView() {
 					)}
 
 					{!analyticsLoading && !analytics && (
-						<div className="admin-empty">Cliquez sur Rafraîchir pour charger les analytics.</div>
+						<div className="admin-empty">Cliquez sur Rafraichir pour charger les analytics.</div>
 					)}
 				</div>
 			)}

@@ -176,6 +176,8 @@ export function buildVisitPayload(request, extra = {}) {
     country: resolveCountry(countryCode),
     region: geo?.region || '',
     city: geo?.city || '',
+    latitude: geo?.ll?.[0] ?? null,
+    longitude: geo?.ll?.[1] ?? null,
     language:
       (request.headers['accept-language'] || '').split(',')[0].split('-')[0] || '',
     screen: extra.screen ? String(extra.screen).slice(0, 20) : '',
