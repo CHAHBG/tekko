@@ -54,6 +54,7 @@ const fontStyleMap = {
 };
 
 function loadGoogleMaps() {
+  if (!GOOGLE_MAPS_KEY) return Promise.reject(new Error('Google Maps API key not configured'));
   if (window._googleMapsPromise) return window._googleMapsPromise;
   if (window.google?.maps?.places) return Promise.resolve();
   window._googleMapsPromise = new Promise((resolve, reject) => {
