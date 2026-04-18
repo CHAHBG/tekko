@@ -136,6 +136,12 @@ export function AdminView() {
 	const [invoiceResult, setInvoiceResult] = useState(null);
 	const [invoiceError, setInvoiceError] = useState('');
 
+	// ── ANALYTICS ────────────────────────────────────────────────
+	const [analytics, setAnalytics] = useState(null);
+	const [analyticsVisits, setAnalyticsVisits] = useState([]);
+	const [analyticsLoading, setAnalyticsLoading] = useState(false);
+	const [analyticsPeriod, setAnalyticsPeriod] = useState('7d');
+
 	async function handleLogin(event) {
 		event.preventDefault();
 		setLoginError('');
