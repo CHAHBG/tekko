@@ -350,7 +350,7 @@ app.post(
       packageSelection,
       finalCardUrl,
       orderStatus: 'submitted',
-      paymentProvider: 'cinetpay',
+      paymentProvider: isWaveConfigured() ? 'wave' : 'cinetpay',
       paymentStatus: 'pending',
       paymentReference: null,
       paymentUrl: null,
@@ -486,8 +486,11 @@ app.post(
   asyncRoute(async (request, response) => {
     const order = database.getOrderById(request.params.orderId);
     if (!order) {
+      console.log('[VerifyPayment] Order not found:', request.params.orderId);
       return response.status(404).json({ error: 'Order not found.' });
     }
+
+    console.log(`[VerifyPayment] orderId=${order.orderId} current=${order.paymentStatus} ref=${order.paymentReference}`);
 
     // Already paid – return immediately
     if (order.paymentStatus === 'paid') {
@@ -498,12 +501,15 @@ app.post(
     const checkoutId = order.paymentReference;
     if (checkoutId && isWaveConfigured()) {
       try {
-        const waveRes = await fetch(`https://api.wave.com/v1/checkout/sessions/${checkoutId}`, {
+        const waveUrl = `https://api.wave.com/v1/checkout/sessions/${checkoutId}`;
+        console.log('[VerifyPayment] Checking Wave:', waveUrl);
+        const waveRes = await fetch(waveUrl, {
           headers: { Authorization: `Bearer ${process.env.WAVE_API_KEY}` },
         });
+        console.log('[VerifyPayment] Wave response status:', waveRes.status);
         if (waveRes.ok) {
           const session = await waveRes.json();
-          // Wave uses payment_status: 'succeeded' for completed payments
+          console.log('[VerifyPayment] Wave session payment_status:', session.payment_status);
           if (session.payment_status === 'succeeded') {
             database.updatePayment({
               orderId: order.orderId,
@@ -520,12 +526,18 @@ app.post(
             sendOrderConfirmationEmail({ order, totalPrice }).catch((err) =>
               console.error('[VerifyPayment] Email error:', err.message),
             );
+            console.log('[VerifyPayment] Marked PAID for orderId:', order.orderId);
             return response.json({ paymentStatus: 'paid', finalCardUrl: order.finalCardUrl });
           }
+        } else {
+          const errBody = await waveRes.text();
+          console.error('[VerifyPayment] Wave API error response:', waveRes.status, errBody);
         }
       } catch (err) {
         console.error('[VerifyPayment] Wave API error:', err.message);
       }
+    } else {
+      console.log('[VerifyPayment] Skipped Wave check: checkoutId=', checkoutId, 'waveConfigured=', isWaveConfigured());
     }
 
     return response.json({ paymentStatus: order.paymentStatus, finalCardUrl: order.finalCardUrl });
@@ -534,6 +546,7 @@ app.post(
 
 app.post(
   '/api/payments/cinetpay/webhook',  asyncRoute(async (request, response) => {
+    console.log('[CinetPay Webhook] Received:', JSON.stringify(request.body).slice(0, 500));
     const { paymentReference, paymentStatus, payload } = normalizeCinetPayWebhookPayload(request.body);
 
     if (!paymentReference) {
@@ -577,13 +590,15 @@ app.post(
 app.post(
   '/api/payments/wave/webhook',
   asyncRoute(async (request, response) => {
+    console.log('[Wave Webhook] Received:', JSON.stringify(request.body).slice(0, 500));
+
     // Verify Wave webhook signature
     const webhookSecret = process.env.WAVE_WEBHOOK_SECRET || process.env.WAVE_SIGNING_SECRET;
     if (webhookSecret) {
       const rawBody = request.rawBody || JSON.stringify(request.body);
       const sig = request.header('wave-signature') || '';
       if (!verifyWaveWebhook(rawBody, sig)) {
-        console.error('[Wave Webhook] Invalid signature');
+        console.error('[Wave Webhook] Invalid signature, sig header:', sig ? 'present' : 'missing');
         return response.status(403).json({ error: 'Invalid webhook signature.' });
       }
     }
