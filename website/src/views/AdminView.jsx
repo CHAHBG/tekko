@@ -89,7 +89,7 @@ function TimeSeriesChart({ data }) {
 						<div
 							className="analytics-ts-bar"
 							style={{ height: `${Math.max(2, (day.visits / max) * 100)}%` }}
-							title={`${day.date}: ${day.visits} visites, ${day.unique} uniques`}
+							title={`${day.date}: ${day.visits} visites, ${day.uniques} uniques`}
 						/>
 					</div>
 					<span className="analytics-ts-label">{day.date.slice(5)}</span>

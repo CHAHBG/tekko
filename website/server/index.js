@@ -1130,6 +1130,7 @@ app.use((error, request, response, _next) => {
   }
 
   const statusCode = error.message?.includes('Only JPG, PNG, and WEBP images are allowed') ? 400 : 500;
+  if (statusCode === 500) console.error('[500]', error);
   const safeMessage = statusCode === 500
     ? 'Something went wrong while processing the request.'
     : error.message;

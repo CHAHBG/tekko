@@ -543,7 +543,7 @@ export function createDatabase({ databasePath }) {
       return database.prepare(`
         SELECT DATE(visited_at) AS date,
                COUNT(*) AS visits,
-               COUNT(DISTINCT ip_hash) AS unique
+               COUNT(DISTINCT ip_hash) AS uniques
         FROM visit_events
         WHERE visited_at >= ?
         GROUP BY DATE(visited_at)
