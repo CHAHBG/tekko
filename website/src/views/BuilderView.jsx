@@ -592,8 +592,8 @@ export function BuilderView() {
   }), [activeAccent, customization.foil, customization.material]);
 
   const bambaBrief = useMemo(() => {
-    // Per-card price: pack price divided by its included quantity (e.g. Business = 60000/5 = 12000)
-    const perCardPrice = Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
+    // Use perCardBase if defined (e.g. Business = 27000), else derive from pack price
+    const perCardPrice = packageSelection?.perCardBase ?? Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
     let totalQtyPrice = perCardPrice * bambaQty;
     if (bambaQty >= 10) totalQtyPrice = Math.round(totalQtyPrice * 0.70);
     else if (bambaQty >= 5) totalQtyPrice = Math.round(totalQtyPrice * 0.80);
@@ -1526,8 +1526,8 @@ export function BuilderView() {
                       <button type="button" className="qty-btn" onClick={() => setBambaQty((q) => q + 1)}>+</button>
                     </div>
                     {(() => {
-                      // Per-card price: pack price / pack included quantity
-                      const unit = Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
+                      // Use perCardBase if defined (e.g. Business = 27000), else derive from pack price
+                      const unit = packageSelection?.perCardBase ?? Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
                       let disc = 0;
                       let label = '';
                       if (bambaQty >= 10) { disc = 30; label = '−30%'; }

@@ -69,7 +69,8 @@ const packageCatalog = {
   business: {
     key: 'business',
     name: 'Business',
-    price: 150000,
+    price: 114750,
+    perCardBase: 27000,
     quantity: 5,
     leadTime: '5 days',
   },
@@ -536,8 +537,8 @@ app.post(
     const packInfo = resolvePackage(packKey);
     const qty = Math.max(1, Math.min(999, parseInt(body.quantity ?? 1, 10) || 1));
 
-    // Per-card price = pack price / pack included quantity (e.g. Business: 60000/5 = 12000/card)
-    const perCardPrice = Math.round(packInfo.price / (packInfo.quantity ?? 1));
+    // Per-card base price: use perCardBase if defined, else derive from pack price / quantity
+    const perCardPrice = packInfo.perCardBase ?? Math.round(packInfo.price / (packInfo.quantity ?? 1));
 
     // Volume pricing (same tiers as frontend)
     let totalPrice = perCardPrice * qty;

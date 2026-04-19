@@ -150,8 +150,10 @@ export const packCatalog = {
   business: {
     key: 'business',
     name: 'Business',
-    price: 150000,
+    price: 114750,
+    perCardBase: 27000,
     quantity: 5,
+    discountBadge: '-15%',
     caption: '5 cartes NFC premium — domaine dédié, dorure, design haut de gamme.',
   },
 };
