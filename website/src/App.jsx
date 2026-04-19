@@ -4,6 +4,13 @@ import { AdminView } from './views/AdminView';
 import { CeremonyView } from './views/CeremonyView';
 import { PaymentStateView } from './views/PaymentStateView';
 import { PublicCardView } from './views/PublicCardView';
+import { OrderPortalView } from './views/OrderPortalView';
+import { initI18n } from './lib/i18n';
+import { initDarkMode } from './lib/darkMode';
+
+// Initialize i18n and dark mode on app load
+initI18n();
+initDarkMode();
 
 function App() {
   const currentPath = window.location.pathname;
@@ -24,7 +31,7 @@ function App() {
   // ── Visitor tracking beacon ─────────────────────────────────
   useEffect(() => {
     // Skip admin pages and payment callbacks — those are not real visitor events
-    if (currentPath.startsWith('/admin') || currentPath.startsWith('/payment')) return;
+    if (currentPath.startsWith('/admin') || currentPath.startsWith('/payment') || currentPath.startsWith('/my-order')) return;
     fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,6 +45,10 @@ function App() {
 
   if (currentPath.startsWith('/admin')) {
     return <AdminView />;
+  }
+
+  if (currentPath.startsWith('/my-order')) {
+    return <OrderPortalView />;
   }
 
   if (currentPath.startsWith('/payment/success') || paymentParam === 'success') {

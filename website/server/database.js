@@ -44,6 +44,10 @@ function mapOrder(row) {
     deliveryNotes: row.delivery_notes,
     couponCode: row.coupon_code ?? null,
     discountAmount: row.discount_amount ?? 0,
+    portalToken: row.portal_token ?? null,
+    source: row.source ?? 'visual',
+    description: row.description ?? '',
+    quantity: row.quantity ?? 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -177,6 +181,36 @@ export function createDatabase({ databasePath }) {
     database.exec("ALTER TABLE orders ADD COLUMN discount_amount INTEGER NOT NULL DEFAULT 0");
   }
 
+  // ── Voice feature migrations (idempotent) ──
+  if (!orderCols.includes('source')) {
+    database.exec("ALTER TABLE orders ADD COLUMN source TEXT DEFAULT 'visual'");
+  }
+  if (!orderCols.includes('detected_language')) {
+    database.exec("ALTER TABLE orders ADD COLUMN detected_language TEXT DEFAULT 'fr'");
+  }
+  if (!orderCols.includes('portal_token')) {
+    database.exec('ALTER TABLE orders ADD COLUMN portal_token TEXT');
+  }
+  if (!orderCols.includes('description')) {
+    database.exec("ALTER TABLE orders ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orderCols.includes('quantity')) {
+    database.exec('ALTER TABLE orders ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1');
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS voice_sessions (
+      session_id   TEXT PRIMARY KEY,
+      order_id     TEXT REFERENCES orders(order_id) ON DELETE CASCADE,
+      language     TEXT NOT NULL,
+      turns        TEXT NOT NULL DEFAULT '[]',
+      completed    INTEGER DEFAULT 0,
+      created_at   TEXT DEFAULT (datetime('now')),
+      updated_at   TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_voice_order ON voice_sessions(order_id);
+  `);
+
   const insertOrder = database.prepare(`
     INSERT INTO orders (
       order_id,
@@ -203,6 +237,10 @@ export function createDatabase({ databasePath }) {
       delivery_notes,
       coupon_code,
       discount_amount,
+      portal_token,
+      source,
+      description,
+      quantity,
       created_at,
       updated_at
     ) VALUES (
@@ -230,6 +268,10 @@ export function createDatabase({ databasePath }) {
       @delivery_notes,
       @coupon_code,
       @discount_amount,
+      @portal_token,
+      @source,
+      @description,
+      @quantity,
       @created_at,
       @updated_at
     )
@@ -291,6 +333,14 @@ export function createDatabase({ databasePath }) {
     WHERE order_id = @order_id
   `);
 
+  const updateOrderCard = database.prepare(`
+    UPDATE orders
+    SET profile_json = @profile_json,
+        customization_json = @customization_json,
+        updated_at = @updated_at
+    WHERE order_id = @order_id
+  `);
+
   const updateOrderCoupon = database.prepare(`
     UPDATE orders
     SET coupon_code = @coupon_code,
@@ -341,6 +391,10 @@ export function createDatabase({ databasePath }) {
         delivery_notes: order.deliveryNotes ?? '',
         coupon_code: order.couponCode ?? null,
         discount_amount: order.discountAmount ?? 0,
+        portal_token: order.portalToken ?? null,
+        source: order.source ?? 'visual',
+        description: order.description ?? '',
+        quantity: order.quantity ?? 1,
         created_at: order.createdAt,
         updated_at: order.updatedAt,
       });
@@ -414,6 +468,17 @@ export function createDatabase({ databasePath }) {
       return mapOrder(selectOrderById.get(orderId));
     },
 
+    updateOrderCard({ orderId, profile, customization }) {
+      updateOrderCard.run({
+        order_id: orderId,
+        profile_json: JSON.stringify(profile),
+        customization_json: JSON.stringify(customization),
+        updated_at: new Date().toISOString(),
+      });
+
+      return mapOrder(selectOrderById.get(orderId));
+    },
+
     updateOrderCoupon({ orderId, couponCode, discountAmount }) {
       updateOrderCoupon.run({
         order_id: orderId,
@@ -479,6 +544,35 @@ export function createDatabase({ databasePath }) {
 
     useCoupon(code) {
       database.prepare('UPDATE coupons SET used_count = used_count + 1 WHERE code = ?').run(code.toUpperCase());
+    },
+
+    /** Atomically validate and apply a coupon to an order (prevents race conditions). */
+    applyCouponAtomically({ orderId, code, basePrice }) {
+      const apply = database.transaction(() => {
+        const r = database.prepare('SELECT * FROM coupons WHERE code = ?').get(code.toUpperCase());
+        if (!r || !r.active) throw new Error('Code coupon invalide ou inactif.');
+        if (r.max_uses > 0 && r.used_count >= r.max_uses) {
+          throw new Error("Ce coupon a atteint son nombre maximum d'utilisations.");
+        }
+        const coupon = {
+          code: r.code, discountType: r.discount_type, discountValue: r.discount_value,
+          maxUses: r.max_uses, usedCount: r.used_count, active: Boolean(r.active), createdAt: r.created_at,
+        };
+        let discountAmount = 0;
+        if (coupon.discountType === 'percent') {
+          discountAmount = Math.round(basePrice * coupon.discountValue / 100);
+        } else {
+          discountAmount = Math.min(coupon.discountValue, basePrice);
+        }
+        updateOrderCoupon.run({
+          order_id: orderId,
+          coupon_code: code.toUpperCase(),
+          discount_amount: discountAmount,
+          updated_at: new Date().toISOString(),
+        });
+        return { discountAmount, coupon };
+      });
+      return apply();
     },
 
     // ── CEREMONIES ──────────────────────────────────────────
@@ -665,6 +759,56 @@ export function createDatabase({ databasePath }) {
         ORDER BY visits DESC
         LIMIT 200
       `).all(since);
+    },
+
+    getVisitStatsForSlug({ slug, since }) {
+      const totals = database.prepare(`
+        SELECT COUNT(*) AS totalViews,
+               COUNT(DISTINCT ip_hash) AS uniqueVisitors
+        FROM visit_events
+        WHERE slug = ? AND visited_at >= ?
+      `).get(slug, since);
+      const byCountry = database.prepare(`
+        SELECT country_code AS code, country, COUNT(*) AS visits
+        FROM visit_events
+        WHERE slug = ? AND visited_at >= ? AND country_code != ''
+        GROUP BY country_code
+        ORDER BY visits DESC
+        LIMIT 10
+      `).all(slug, since);
+      return {
+        totalViews: totals?.totalViews ?? 0,
+        uniqueVisitors: totals?.uniqueVisitors ?? 0,
+        byCountry: byCountry ?? [],
+      };
+    },
+
+    // ── Voice session methods ──────────────────────────────────────
+    createVoiceSession({ sessionId, orderId, language }) {
+      const now = new Date().toISOString();
+      database.prepare(`
+        INSERT INTO voice_sessions (session_id, order_id, language, turns, completed, created_at, updated_at)
+        VALUES (?, ?, ?, '[]', 0, ?, ?)
+      `).run(sessionId, orderId ?? null, language, now, now);
+    },
+
+    appendVoiceTurn({ sessionId, role, content }) {
+      const row = database.prepare('SELECT turns FROM voice_sessions WHERE session_id = ?').get(sessionId);
+      if (!row) return;
+      const turns = JSON.parse(row.turns);
+      turns.push({ role, content, ts: new Date().toISOString() });
+      database.prepare('UPDATE voice_sessions SET turns = ?, updated_at = datetime(\'now\') WHERE session_id = ?')
+        .run(JSON.stringify(turns), sessionId);
+    },
+
+    completeVoiceSession(sessionId, orderId) {
+      database.prepare('UPDATE voice_sessions SET completed = 1, order_id = ?, updated_at = datetime(\'now\') WHERE session_id = ?')
+        .run(orderId, sessionId);
+    },
+
+    updateOrderSource({ orderId, source, detectedLanguage }) {
+      database.prepare('UPDATE orders SET source = ?, detected_language = ?, updated_at = datetime(\'now\') WHERE order_id = ?')
+        .run(source ?? 'voice', detectedLanguage ?? 'fr', orderId);
     },
   };
 }

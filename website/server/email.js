@@ -1,4 +1,4 @@
-import { request as httpsRequest } from 'https';
+﻿import { request as httpsRequest } from 'https';
 
 const BREVO_API_HOST = 'api.brevo.com';
 const BREVO_API_PATH = '/v3/smtp/email';
@@ -28,7 +28,7 @@ function sendViaBrevo({ from, to, subject, html }) {
       hostname: BREVO_API_HOST,
       path: BREVO_API_PATH,
       method: 'POST',
-      family: 4, // force IPv4 — uses 178.104.176.213
+      family: 4, // force IPv4 â€” uses 178.104.176.213
       headers: {
         'accept': 'application/json',
         'api-key': process.env.BREVO_API_KEY,
@@ -97,7 +97,7 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
   <!-- HEADER -->
   <tr><td style="background:#1a1a1a;padding:1.6rem 2rem;text-align:center;">
     <img src="https://tekko.geochifa.com/tekko-logo.png" alt="TEKKO" width="120" style="display:block;margin:0 auto .6rem;"/>
-    <img src="https://geochifa.com/images/logo-nobg.png" alt="GeoChifâ" width="28" style="display:block;margin:0 auto;opacity:.6;"/>
+    <img src="https://geochifa.com/images/logo-nobg.png" alt="GeoChifÃ¢" width="28" style="display:block;margin:0 auto;opacity:.6;"/>
     <div style="color:rgba(255,255,255,.4);font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.3rem;">Confirmation de commande</div>
   </td></tr>
 
@@ -105,22 +105,22 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
   <tr><td style="padding:1.8rem 2rem 0;">
 
     <!-- Greeting -->
-    <p style="margin:0 0 .5rem;color:#1a1a1a;font-size:.95rem;font-weight:600;">Bonjour ${safeFullName} 👋</p>
+    <p style="margin:0 0 .5rem;color:#1a1a1a;font-size:.95rem;font-weight:600;">Bonjour ${safeFullName} ðŸ‘‹</p>
     <p style="margin:0 0 1.5rem;color:#555;font-size:.83rem;line-height:1.65;">
-      Votre paiement a bien été reçu et votre commande <strong style="color:#1a1a1a;">#${orderId}</strong> est confirmée.<br/>
-      Notre équipe prépare votre carte NFC et vous contactera pour organiser la livraison.
+      Votre paiement a bien Ã©tÃ© reÃ§u et votre commande <strong style="color:#1a1a1a;">#${orderId}</strong> est confirmÃ©e.<br/>
+      Notre Ã©quipe prÃ©pare votre carte NFC et vous contactera pour organiser la livraison.
     </p>
 
     <!-- Order summary -->
     <div style="background:#f7f5f1;border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1.2rem;">
-      <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:.8rem;">Détails de la commande</div>
+      <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:.8rem;">DÃ©tails de la commande</div>
       <table width="100%" cellpadding="0" cellspacing="0" style="font-size:.82rem;border-collapse:collapse;">
         <tr>
           <td style="padding:.35rem 0;color:#888;">Pack</td>
           <td style="padding:.35rem 0;text-align:right;font-weight:700;color:#1a1a1a;">${safePackName} (${pack.quantity || 1} carte${(pack.quantity||1)>1?'s':''})</td>
         </tr>
         <tr>
-          <td style="padding:.35rem 0;color:#888;">Matériau</td>
+          <td style="padding:.35rem 0;color:#888;">MatÃ©riau</td>
           <td style="padding:.35rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeMaterial}</td>
         </tr>
         <tr>
@@ -133,8 +133,8 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
         </tr>
         <tr><td colspan="2" style="padding:.3rem 0;"><div style="border-top:1.5px dashed #dedad4;"></div></td></tr>
         <tr>
-          <td style="padding:.5rem 0 .2rem;color:#1a1a1a;font-weight:700;font-size:.9rem;">Total payé</td>
-          <td style="padding:.5rem 0 .2rem;text-align:right;font-weight:900;color:#e85d26;font-size:1rem;">${formatMoney(totalPrice)}</td>
+          <td style="padding:.5rem 0 .2rem;color:#1a1a1a;font-weight:700;font-size:.9rem;">Total payÃ©</td>
+          <td style="padding:.5rem 0 .2rem;text-align:right;font-weight:900;color:#1a9d8f;font-size:1rem;">${formatMoney(totalPrice)}</td>
         </tr>
       </table>
     </div>
@@ -144,9 +144,9 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
       <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:.8rem;">Profil de la carte</div>
       <table width="100%" cellpadding="0" cellspacing="0" style="font-size:.82rem;border-collapse:collapse;">
         ${profile.fullName ? `<tr><td style="padding:.3rem 0;color:#888;width:40%;">Nom</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeFullName}</td></tr>` : ''}
-        ${profile.role ? `<tr><td style="padding:.3rem 0;color:#888;">Rôle</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeRole}</td></tr>` : ''}
+        ${profile.role ? `<tr><td style="padding:.3rem 0;color:#888;">RÃ´le</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeRole}</td></tr>` : ''}
         ${profile.company ? `<tr><td style="padding:.3rem 0;color:#888;">Entreprise</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeCompany}</td></tr>` : ''}
-        ${profile.phone ? `<tr><td style="padding:.3rem 0;color:#888;">Téléphone</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safePhone}</td></tr>` : ''}
+        ${profile.phone ? `<tr><td style="padding:.3rem 0;color:#888;">TÃ©lÃ©phone</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safePhone}</td></tr>` : ''}
         ${profile.email ? `<tr><td style="padding:.3rem 0;color:#888;">Email</td><td style="padding:.3rem 0;text-align:right;font-weight:600;color:#1a1a1a;">${safeEmail}</td></tr>` : ''}
       </table>
     </div>
@@ -155,8 +155,8 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
     ${cardUrl && !customization.customDomain ? `
     <div style="background:#eef6ff;border:1.5px solid #b8d4f0;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;">
       <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#5a9bd5;margin-bottom:.5rem;">Votre carte digitale</div>
-      <p style="margin:0 0 .5rem;font-size:.82rem;color:#444;line-height:1.5;">Votre carte digitale est accessible à l'adresse suivante :</p>
-      <a href="${escapeHtml(cardUrl)}" style="display:inline-block;color:#e85d26;font-weight:700;font-size:.88rem;word-break:break-all;">${escapeHtml(cardUrl)}</a>
+      <p style="margin:0 0 .5rem;font-size:.82rem;color:#444;line-height:1.5;">Votre carte digitale est accessible Ã  l'adresse suivante :</p>
+      <a href="${escapeHtml(cardUrl)}" style="display:inline-block;color:#1a9d8f;font-weight:700;font-size:.88rem;word-break:break-all;">${escapeHtml(cardUrl)}</a>
     </div>
     ` : ''}
 
@@ -164,14 +164,14 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
     <div style="background:#f0faf4;border:1.5px solid #c5e8d4;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;">
       <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6abf8a;margin-bottom:.5rem;">Livraison</div>
       <p style="margin:0;font-size:.82rem;color:#444;line-height:1.6;">
-        Votre commande sera livrée sous <strong>${pack.quantity > 1 ? '5 jours ouvrés' : '72 heures'}</strong>.${deliveryPhone ? `<br/>Nous vous contacterons au <strong>${deliveryPhone}</strong> pour convenir des modalités de livraison.` : ''}
+        Votre commande sera livrÃ©e sous <strong>${pack.quantity > 1 ? '5 jours ouvrÃ©s' : '72 heures'}</strong>.${deliveryPhone ? `<br/>Nous vous contacterons au <strong>${deliveryPhone}</strong> pour convenir des modalitÃ©s de livraison.` : ''}
       </p>
     </div>
 
     <!-- PDF Receipt -->
     <div style="text-align:center;margin-bottom:1.8rem;">
       <a href="${escapeHtml(pdfUrl)}" style="display:inline-block;background:#1a1a1a;color:#fff;font-size:.82rem;font-weight:700;padding:.7rem 1.6rem;border-radius:10px;text-decoration:none;">
-        📄 Télécharger le reçu PDF
+        ðŸ“„ TÃ©lÃ©charger le reÃ§u PDF
       </a>
     </div>
 
@@ -180,7 +180,7 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
   <!-- FOOTER -->
   <tr><td style="background:#f7f5f1;border-top:1px solid #ece9e4;padding:1.1rem 2rem;text-align:center;">
     <img src="https://tekko.geochifa.com/tekko-logo.png" alt="TEKKO" width="60" style="display:inline-block;vertical-align:middle;margin-right:.4rem;"/>
-    <span style="color:#ccc;font-size:.7rem;vertical-align:middle;">by GeoChifâ · Dakar, Sénégal</span>
+    <span style="color:#ccc;font-size:.7rem;vertical-align:middle;">by GeoChifÃ¢ Â· Dakar, SÃ©nÃ©gal</span>
     <p style="margin:.5rem 0 0;font-size:.65rem;color:#ccc;">Pour toute question : <a href="mailto:noreply@geochifa.com" style="color:#bbb;">noreply@geochifa.com</a></p>
   </td></tr>
 
@@ -191,17 +191,25 @@ export async function sendOrderConfirmationEmail({ order, totalPrice }) {
 
   const fromAddress = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || 'noreply@tekko.sn';
 
-  try {
-    await sendViaBrevo({
-      from: fromAddress,
-      to: customerEmail,
-      subject: `Votre commande TEKKO #${orderId} est confirmée ✓`,
-      html,
-    });
-    console.log(`[Email] Confirmation sent to ${customerEmail} for order ${orderId}`);
-    return true;
-  } catch (err) {
-    console.error('[Email] Failed to send:', err.message);
-    return false;
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await sendViaBrevo({
+        from: fromAddress,
+        to: customerEmail,
+        subject: `Votre commande TEKKO #${orderId} est confirmÃ©e âœ“`,
+        html,
+      });
+      console.log(`[Email] Confirmation sent to ${customerEmail} for order ${orderId}`);
+      return true;
+    } catch (err) {
+      console.error(`[Email] Attempt ${attempt + 1}/${maxRetries} failed: ${err.message}`);
+      if (attempt < maxRetries - 1) {
+        const waitMs = Math.pow(2, attempt) * 1000;
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+    }
   }
+  console.error(`[Email] All ${maxRetries} attempts failed for order ${orderId}`);
+  return false;
 }

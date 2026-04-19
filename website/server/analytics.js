@@ -1,6 +1,8 @@
 import geoip from 'geoip-lite';
 import UAParser from 'ua-parser-js';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // Country names in French (Africa-focused + major countries)
 const COUNTRY_NAMES = {
@@ -63,9 +65,28 @@ function extractIp(request) {
   return request.headers['x-real-ip'] || request.socket?.remoteAddress || '';
 }
 
+function getOrCreateIpSalt() {
+  const envSalt = process.env.IP_HASH_SALT;
+  if (envSalt) return envSalt;
+  const dataDir = process.env.DATA_DIR || './data';
+  const saltFile = path.join(dataDir, '.ip-salt');
+  try {
+    return fs.readFileSync(saltFile, 'utf8').trim();
+  } catch {
+    const salt = randomBytes(32).toString('hex');
+    try {
+      fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(saltFile, salt);
+    } catch { /* best effort */ }
+    return salt;
+  }
+}
+
+const persistedIpSalt = getOrCreateIpSalt();
+
 function hashIp(ip, salt) {
   return createHash('sha256')
-    .update(ip + (salt || 'tekko-analytics-default-salt'))
+    .update(ip + (salt || persistedIpSalt))
     .digest('hex')
     .slice(0, 20);
 }
@@ -124,8 +145,7 @@ function normalizeReferrer(ref, host) {
  */
 export function buildVisitPayload(request, extra = {}) {
   const rawIp = normalizeIp(extractIp(request));
-  const ipSalt = process.env.IP_HASH_SALT || 'tekko-analytics-default-salt';
-  const ipHash = hashIp(rawIp, ipSalt);
+  const ipHash = hashIp(rawIp, persistedIpSalt);
 
   const ua = request.headers['user-agent'] || '';
   const uaResult = new UAParser(ua).getResult();

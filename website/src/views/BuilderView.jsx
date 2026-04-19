@@ -1,11 +1,17 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { startCheckout, submitOrder, fetchInventory, validateCoupon, checkDomain } from '../lib/api';
+import { startCheckout, submitOrder, fetchInventory, validateCoupon, checkDomain, submitCleEnMainOrder } from '../lib/api';
+import VoiceAssistant from '../components/VoiceAssistant';
+import { CardCanvas } from './builder/CardCanvas';
+import { FieldEditor } from './builder/FieldEditor';
+import { CheckoutWizard, PhysicalCardMock } from './builder/CheckoutWizard';
+import { SOCIAL_ICON_MAP as BUILDER_SOCIAL_ICON_MAP } from './builder/builderIcons';
 import {
   analyzePrompt,
   buildOrderBrief,
   buildWhatsAppUrl,
   calculateTotalPrice,
+  cardTemplates,
   composeCardUrl,
   createSlug,
   defaultAssets,
@@ -14,15 +20,60 @@ import {
   defaultProfile,
   foilCatalog,
   formatMoney,
-  getAssetDisplayUrl,
   getInitials,
   materialCatalog,
   orderContactFields,
   packCatalog,
   profileFields,
   serializeAsset,
+  socialFields,
   themeCatalog,
 } from '../lib/catalog';
+import { useI18n, getSupportedLanguages, setLanguage as setI18nLang } from '../lib/i18n';
+import { useDarkMode } from '../lib/darkMode';
+import { SvgSun, SvgMoon, SvgMonitor, SvgMic, SvgGrid, TEMPLATE_ICON_MAP } from './builder/builderIcons';
+
+// Fields that can be edited inline directly on the canvas (no side panel)
+const INLINE_TEXT_FIELDS = new Set(['fullName', 'role', 'company', 'phone', 'email', 'website', 'bio']);
+
+function InlineEditOverlay({ editingField, profile, onFieldChange, onClose }) {
+  const { key, rect } = editingField;
+  const fieldMeta = profileFields.find((f) => f.key === key);
+  const isTextarea = key === 'bio';
+
+  return (
+    <div className="inline-edit-backdrop" onClick={onClose}>
+      <div
+        className="inline-edit-float"
+        style={{ top: rect.top, left: rect.left, width: Math.max(rect.width, 220) }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {isTextarea ? (
+          <textarea
+            className="inline-edit-input"
+            autoFocus
+            value={profile[key] || ''}
+            placeholder={fieldMeta?.placeholder || fieldMeta?.label || key}
+            rows={3}
+            onChange={(event) => onFieldChange(key, event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}
+          />
+        ) : (
+          <input
+            className="inline-edit-input"
+            autoFocus
+            type="text"
+            value={profile[key] || ''}
+            placeholder={fieldMeta?.placeholder || fieldMeta?.label || key}
+            onChange={(event) => onFieldChange(key, event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === 'Escape') onClose(); }}
+          />
+        )}
+        <button type="button" className="inline-edit-done" onClick={onClose}>OK</button>
+      </div>
+    </div>
+  );
+}
 
 function WhatsAppIcon() {
   return (
@@ -33,36 +84,22 @@ function WhatsAppIcon() {
   );
 }
 
-function WaveIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ width: '1.1rem', height: '1.1rem', flexShrink: 0 }}>
-      <path d="M2 12c1.5-3 4-5 6-5s3.5 2 5.5 2 4-2 6-2c1 0 1.8.4 2.5 1M2 17c1.5-3 4-5 6-5s3.5 2 5.5 2 4-2 6-2c1 0 1.8.4 2.5 1" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
-
-const fontStyleMap = {
-  moderne:   "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  elegant:   "Georgia, 'Times New Roman', serif",
-  technique: "'Courier New', Courier, monospace",
-  arrondi:   "'Trebuchet MS', 'Comic Sans MS', Nunito, Arial, sans-serif",
-  roboto:    "'Roboto', sans-serif",
-  sf:        "-apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif",
-  segoe:     "'Segoe UI', Calibri, Arial, sans-serif",
-};
 
 function loadGoogleMaps() {
   if (!GOOGLE_MAPS_KEY) return Promise.reject(new Error('Google Maps API key not configured'));
   if (window._googleMapsPromise) return window._googleMapsPromise;
   if (window.google?.maps?.places) return Promise.resolve();
   window._googleMapsPromise = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      window._googleMapsPromise = null;
+      reject(new Error('Google Maps took too long to load'));
+    }, 8000);
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places&language=fr`;
     script.async = true;
-    script.onload = resolve;
-    script.onerror = () => { window._googleMapsPromise = null; reject(new Error('Google Maps failed to load')); };
+    script.onload = () => { clearTimeout(timeout); resolve(); };
+    script.onerror = () => { clearTimeout(timeout); window._googleMapsPromise = null; reject(new Error('Google Maps failed to load')); };
     document.head.appendChild(script);
   });
   return window._googleMapsPromise;
@@ -191,92 +228,6 @@ function DomainChecker({ value, onChange, onResult }) {
   );
 }
 
-/**
- * Gesture-based image repositioning for preview containers.
- * Attach returned callback ref to any container wrapping a gesture-controlled image.
- * - Mouse: drag to reposition, scroll wheel to zoom
- * - Trackpad: two-finger scroll to zoom, drag to reposition
- * - Mobile: single-finger drag to reposition, pinch to zoom
- */
-function useGestureAttach(assetKey, assetsRef, adjustRef) {
-  const s = useRef({ drag: null, pinch: null, cleanup: null });
-  return useCallback((el) => {
-    // cleanup previous element's listeners
-    s.current.cleanup?.();
-    s.current.cleanup = null;
-    if (!el) return;
-
-    const c = s.current;
-    const A = () => (assetsRef.current ?? {})[assetKey] ?? {};
-    const adj = (f, v) => adjustRef.current?.(assetKey, f, v);
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-    const wheel = (e) => {
-      e.preventDefault();
-      adj('zoom', clamp((A().zoom ?? 1) - e.deltaY * 0.004, 0.6, 2.4));
-    };
-
-    const mdown = (e) => {
-      if (e.button !== 0) return;
-      const a = A(); const r = el.getBoundingClientRect();
-      c.drag = { x: e.clientX, y: e.clientY, px: a.positionX ?? 50, py: a.positionY ?? 50, w: r.width, h: r.height };
-      el.classList.add('gesture--active');
-    };
-    const mmove = (e) => {
-      if (!c.drag) return;
-      const d = c.drag;
-      adj('positionX', clamp(d.px + (e.clientX - d.x) * 100 / d.w, 0, 100));
-      adj('positionY', clamp(d.py + (e.clientY - d.y) * 100 / d.h, 0, 100));
-    };
-    const mup = () => { c.drag = null; el.classList.remove('gesture--active'); };
-
-    const tstart = (e) => {
-      const t = e.touches;
-      if (t.length === 2) {
-        e.preventDefault();
-        c.pinch = { d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), z: A().zoom ?? 1 };
-        c.drag = null;
-      } else if (t.length === 1) {
-        const a = A(); const r = el.getBoundingClientRect();
-        c.drag = { x: t[0].clientX, y: t[0].clientY, px: a.positionX ?? 50, py: a.positionY ?? 50, w: r.width, h: r.height };
-      }
-    };
-    const tmove = (e) => {
-      const t = e.touches;
-      if (t.length === 2 && c.pinch) {
-        e.preventDefault();
-        const d = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-        adj('zoom', clamp(c.pinch.z * d / c.pinch.d, 0.6, 2.4));
-      } else if (t.length === 1 && c.drag) {
-        e.preventDefault();
-        const dr = c.drag;
-        adj('positionX', clamp(dr.px + (t[0].clientX - dr.x) * 100 / dr.w, 0, 100));
-        adj('positionY', clamp(dr.py + (t[0].clientY - dr.y) * 100 / dr.h, 0, 100));
-      }
-    };
-    const tend = () => { c.drag = null; c.pinch = null; el.classList.remove('gesture--active'); };
-
-    el.addEventListener('wheel', wheel, { passive: false });
-    el.addEventListener('mousedown', mdown);
-    window.addEventListener('mousemove', mmove);
-    window.addEventListener('mouseup', mup);
-    el.addEventListener('touchstart', tstart, { passive: false });
-    el.addEventListener('touchmove', tmove, { passive: false });
-    el.addEventListener('touchend', tend);
-
-    c.cleanup = () => {
-      el.removeEventListener('wheel', wheel);
-      el.removeEventListener('mousedown', mdown);
-      window.removeEventListener('mousemove', mmove);
-      window.removeEventListener('mouseup', mup);
-      el.removeEventListener('touchstart', tstart);
-      el.removeEventListener('touchmove', tmove);
-      el.removeEventListener('touchend', tend);
-      el.classList.remove('gesture--active');
-    };
-  }, []); // stable — reads from refs, no deps needed
-}
-
 function AssetField({ title, asset, onFileChange, onRemoteChange, onAdjust, rotationEnabled = false }) {
   const hasImage = asset.sourceType !== 'none';
   return (
@@ -326,34 +277,201 @@ function AssetField({ title, asset, onFileChange, onRemoteChange, onAdjust, rota
             <input type="range" min="0.3" max="1" step="0.01" value={asset.opacity}
               onChange={(event) => onAdjust('opacity', Number(event.target.value))} />
           </label>
-          <p className="adjuster-gesture-hint">↔ Glisser · Molette/Pincer: Zoom dans l'aperçu</p>
+          <p className="adjuster-gesture-hint">↔ Glisser · Molette: zoom dans l'aperçu</p>
         </div>
       )}
     </div>
   );
 }
 
+/* ── NFC Activation Guide — interactive phone picker ───────────── */
+const NFC_PHONES = [
+  {
+    key: 'iphone-new', label: 'iPhone XS / XR ou plus recent', icon: '🍎',
+    steps: ['Le NFC est toujours actif — aucune activation necessaire.', 'Approchez la carte Tapal du haut arriere de votre iPhone (pres de la camera).', 'La page de votre carte s\'ouvre automatiquement dans Safari.'],
+    tip: null,
+    placement: 'En haut au dos du telephone, pres de la camera.',
+  },
+  {
+    key: 'iphone-old', label: 'iPhone 7 / 8 / X', icon: '🍎',
+    steps: ['Ouvrez le Centre de controle (glissez depuis le coin superieur droit).', 'Appuyez sur l\'icone NFC (rectangle avec des ondes).', 'Approchez la carte Tapal du haut arriere de l\'iPhone.'],
+    tip: 'Si l\'icone NFC n\'apparait pas : Reglages → Centre de controle → ajoutez « Lecteur de tags NFC ».',
+    placement: 'En haut au dos du telephone, pres de la camera.',
+  },
+  {
+    key: 'iphone-6', label: 'iPhone 6 et moins', icon: '🍎',
+    steps: ['Le NFC n\'est pas supporte pour la lecture sur ces modeles.', 'Utilisez le QR code au verso de votre carte Tapal a la place.', 'Ouvrez l\'appareil photo et pointez vers le QR code.'],
+    tip: null,
+    placement: null,
+  },
+  {
+    key: 'samsung', label: 'Samsung (Galaxy S / A / Note)', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Connexions.', 'Activez NFC et paiement sans contact.'],
+    tip: 'Raccourci : glissez le panneau de notifications vers le bas et appuyez sur l\'icone NFC.',
+    placement: 'Au centre du dos du telephone.',
+  },
+  {
+    key: 'xiaomi', label: 'Xiaomi / Redmi / POCO', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Connexion et partage.', 'Activez NFC.'],
+    tip: null,
+    placement: 'Au centre du dos du telephone.',
+  },
+  {
+    key: 'huawei', label: 'Huawei / Honor', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Plus de parametres de connectivite.', 'Activez NFC.'],
+    tip: null,
+    placement: 'Au centre du dos du telephone.',
+  },
+  {
+    key: 'oppo', label: 'Oppo / Realme / OnePlus', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Connexion et partage (ou Parametres supplementaires).', 'Activez NFC.'],
+    tip: null,
+    placement: 'Au centre du dos du telephone.',
+  },
+  {
+    key: 'pixel', label: 'Google Pixel', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Appareils connectes → Preferences de connexion.', 'Activez NFC.'],
+    tip: null,
+    placement: 'Au centre du dos du telephone.',
+  },
+  {
+    key: 'motorola', label: 'Motorola / Lenovo', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Appareils connectes (ou Sans fil et reseaux → Plus).', 'Activez NFC.'],
+    tip: null,
+    placement: 'Au centre du dos, pres du logo Motorola.',
+  },
+  {
+    key: 'tecno', label: 'Tecno / Infinix / itel', icon: '📱',
+    steps: ['Ouvrez Parametres.', 'Allez dans Connexion et partage (ou Plus de connectivite).', 'Activez NFC (si disponible).'],
+    tip: 'Certains modeles d\'entree de gamme n\'ont pas de NFC. Verifiez les specs de votre modele.',
+    placement: 'Au centre du dos du telephone.',
+  },
+];
+
+function NfcGuide() {
+  const [selected, setSelected] = useState(null);
+  const phone = NFC_PHONES.find((p) => p.key === selected);
+
+  return (
+    <div className="nfc-guide">
+      <div className="nfc-guide-header">
+        <span className="nfc-guide-icon">📡</span>
+        <div>
+          <strong>Comment activer le NFC ?</strong>
+          <p className="nfc-guide-subtitle">Selectionnez votre telephone pour voir les instructions.</p>
+        </div>
+      </div>
+      <div className="nfc-phone-picker">
+        {NFC_PHONES.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            className={`nfc-phone-btn${selected === p.key ? ' active' : ''}`}
+            onClick={() => setSelected(selected === p.key ? null : p.key)}
+          >
+            <span>{p.icon}</span>
+            <span>{p.label}</span>
+          </button>
+        ))}
+      </div>
+      {phone && (
+        <div className="nfc-phone-instructions">
+          <h4>{phone.label}</h4>
+          <ol className="nfc-steps">
+            {phone.steps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+          {phone.tip && <p className="nfc-guide-tip">💡 {phone.tip}</p>}
+          {phone.placement && (
+            <div className="nfc-placement">
+              <span>📍</span>
+              <span><strong>Ou placer la carte :</strong> {phone.placement}</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!phone && (
+        <p className="nfc-guide-hint">💡 Astuce universelle : cherchez « NFC » dans la barre de recherche des Parametres de votre telephone.</p>
+      )}
+    </div>
+  );
+}
+
 export function BuilderView() {
+  const { t, lang } = useI18n();
+  const { mode: darkMode, toggle: toggleDark, effective: effectiveTheme } = useDarkMode();
+
+  // ── ONBOARDING ───────────────────────────────────────────────────
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try { return localStorage.getItem('tapal-onboarded') !== 'true'; } catch { return true; }
+  });
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const onboardingSteps = [
+    { svgIcon: <SvgGrid />, titleKey: 'builder.onboarding.step1', descKey: 'builder.onboarding.step1desc' },
+    { svgIcon: <SvgMic />, titleKey: 'builder.onboarding.step2', descKey: 'builder.onboarding.step2desc' },
+    { svgIcon: <SvgSun />, titleKey: 'builder.onboarding.step3', descKey: 'builder.onboarding.step3desc' },
+  ];
+  function finishOnboarding() {
+    setShowOnboarding(false);
+    try { localStorage.setItem('tapal-onboarded', 'true'); } catch {}
+  }
+
+  // ── TEMPLATE PICKER ──────────────────────────────────────────────
+  const [showTemplates, setShowTemplates] = useState(false);
+  function applyTemplate(tpl) {
+    setProfile((p) => ({ ...p, ...tpl.profile }));
+    setCustomization((c) => ({
+      ...c,
+      themeKey: tpl.customization.theme,
+      accent: tpl.customization.accent,
+      material: tpl.customization.material,
+      finish: tpl.customization.finish,
+      foil: tpl.customization.foil,
+      fontStyle: tpl.customization.fontStyle || c.fontStyle,
+    }));
+    if (tpl.customization.cardLayout) setCardLayout(tpl.customization.cardLayout);
+    setAutoStyle(false);
+    setShowTemplates(false);
+    setToolbarPanel(null);
+  }
+
   const [profile, setProfile] = useState(defaultProfile);
   const [orderContact, setOrderContact] = useState(defaultOrderContact);
   const [customization, setCustomization] = useState(defaultCustomization);
   const [assets, setAssets] = useState(defaultAssets);
   const [selectedPackKey, setSelectedPackKey] = useState('pro');
   const [autoStyle, setAutoStyle] = useState(false);
+
+  /* Business pack: up to 5 card profiles */
+  const emptyBusinessCard = () => ({ fullName: '', role: '', email: '', phone: '' });
+  const [businessCards, setBusinessCards] = useState(() =>
+    Array.from({ length: 5 }, emptyBusinessCard),
+  );
+  function updateBusinessCard(index, field, value) {
+    setBusinessCards((prev) => prev.map((c, i) => i === index ? { ...c, [field]: value } : c));
+  }
   const [bambaMode, setBambaMode] = useState(false);
-  const [previewTab, setPreviewTab] = useState('digital');
+  const [bambaDesc, setBambaDesc] = useState('');
+  const [bambaQty, setBambaQty] = useState(1);
+  const [showVoice, setShowVoice] = useState(false);
+  const [editorMode, setEditorMode] = useState('canvas');
+  const [editingField, setEditingField] = useState(null);
+  const [toolbarPanel, setToolbarPanel] = useState(null);
+  const [showEditHints, setShowEditHints] = useState(() => {
+    try {
+      return window.sessionStorage.getItem('tapal-edit-hints-seen') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [cardLayout, setCardLayout] = useState('classic');
-  const [mobileView, setMobileView] = useState('form');
-  const mobileScrollPos = useRef(0);
   const [customRefFile, setCustomRefFile] = useState(null);
   const [customRefPreview, setCustomRefPreview] = useState('');
-  const [copyState, setCopyState] = useState('idle');
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const [submitState, setSubmitState] = useState({ status: 'idle', message: '', order: null, paymentUrl: '' });
   const [showValidation, setShowValidation] = useState(false);
   const [inventory, setInventory] = useState({});
-  const [activeSection, setActiveSection] = useState('profile');
   const [savedOrderId, setSavedOrderId] = useState(null);
   const [savedFinalCardUrl, setSavedFinalCardUrl] = useState('');
   const [savedPreviewQrUrl, setSavedPreviewQrUrl] = useState('');
@@ -370,46 +488,6 @@ export function BuilderView() {
 
   // Track which delivery fields the user has manually edited
   const deliveryDirty = useRef({ name: false, email: false, phone: false, deliveryCity: false });
-
-  // Section refs for auto-switching preview
-  const sectionRefs = useRef({});
-  const setSectionRef = useCallback((key) => (el) => { sectionRefs.current[key] = el; }, []);
-  const userSwitchedPreview = useRef(false);
-
-  // Auto-switch preview based on visible form section
-  useEffect(() => {
-    const entries = {};
-    const physicalSections = ['physical'];
-    const digitalSections = ['profile', 'images', 'style'];
-    const allSections = ['profile', 'images', 'style', 'physical', 'delivery', 'summary', 'payment'];
-
-    const observer = new IntersectionObserver(
-      (observed) => {
-        observed.forEach((e) => { entries[e.target.dataset.section] = e.isIntersecting; });
-        // Track active section for step indicator
-        const visible = allSections.filter((k) => entries[k]);
-        if (visible.length > 0) setActiveSection(visible[0]);
-        if (userSwitchedPreview.current) return;
-        const anyPhysical = physicalSections.some((k) => entries[k]);
-        const anyDigital = digitalSections.some((k) => entries[k]);
-        if (anyPhysical && !anyDigital) {
-          setPreviewTab('physical');
-        } else if (anyDigital && !anyPhysical) {
-          setPreviewTab('digital');
-        }
-      },
-      { threshold: 0.15 },
-    );
-
-    // Observe after a tick to let DOM settle
-    const timer = setTimeout(() => {
-      Object.entries(sectionRefs.current).forEach(([key, el]) => {
-        if (el) { el.dataset.section = key; observer.observe(el); }
-      });
-    }, 200);
-
-    return () => { clearTimeout(timer); observer.disconnect(); };
-  }, [bambaMode]);
 
   const assetRef = useRef(assets);
   const deferredPrompt = useDeferredValue(customization.stylePrompt);
@@ -451,21 +529,11 @@ export function BuilderView() {
   );
   const finalCardUrl = composeCardUrl(slug);
   const initials = getInitials(profile.fullName);
-  const avatarUrl = getAssetDisplayUrl(assets.avatar);
 
-  // Always-current refs for gesture handlers (set synchronously during render)
-  const assetsRef = useRef(assets);
-  assetsRef.current = assets;
-  const adjustAssetRef = useRef(null);
-
-  // Gesture callback refs — one per asset type, applied to preview containers
-  const avatarGestureRef = useGestureAttach('avatar', assetsRef, adjustAssetRef);
-  const artworkGestureRef = useGestureAttach('artwork', assetsRef, adjustAssetRef);
-  const coverGestureRef = useGestureAttach('cover', assetsRef, adjustAssetRef);
-  const artworkUrl = getAssetDisplayUrl(assets.artwork);
-  const logoUrl = getAssetDisplayUrl(assets.logo);
-  const materialPreview = materialCatalog[customization.material];
-  const foilColor = foilCatalog[customization.foil];
+  // Social links that have a value
+  const activeSocials = socialFields.filter((sf) => profile[sf.key]?.trim()).map((sf) => ({
+    key: sf.key, label: sf.label, url: profile[sf.key], Icon: BUILDER_SOCIAL_ICON_MAP[sf.key],
+  }));
   const orderCustomization = useMemo(() => ({
     ...customization,
     themeKey: activeThemeKey,
@@ -515,24 +583,53 @@ export function BuilderView() {
   );
   const whatsAppUrl = useMemo(() => buildWhatsAppUrl(orderBrief), [orderBrief]);
 
+  const cardSurface = useMemo(() => ({
+    '--card-base': materialCatalog[customization.material]?.base || '#ffffff',
+    '--card-edge': materialCatalog[customization.material]?.edge || '#ccc',
+    '--card-ink': materialCatalog[customization.material]?.ink || '#111',
+    '--card-accent': activeAccent,
+    '--card-foil': customization.foil !== 'No foil' ? foilCatalog[customization.foil] : null,
+  }), [activeAccent, customization.foil, customization.material]);
+
   const bambaBrief = useMemo(() => {
+    // Per-card price: pack price divided by its included quantity (e.g. Business = 60000/5 = 12000)
+    const perCardPrice = Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
+    let totalQtyPrice = perCardPrice * bambaQty;
+    if (bambaQty >= 10) totalQtyPrice = Math.round(totalQtyPrice * 0.70);
+    else if (bambaQty >= 5) totalQtyPrice = Math.round(totalQtyPrice * 0.80);
+    else if (bambaQty >= 3) totalQtyPrice = Math.round(totalQtyPrice * 0.90);
     const lines = [
       `*Commande Cle en main - Tapal*`,
       ``,
       `Nom : ${profile.fullName}`,
       `WhatsApp : ${profile.phone}`,
-      `Pack : ${packageSelection.name} - ${formatMoney(finalPrice)}`,
+      `Pack : ${packageSelection.name} (${formatMoney(perCardPrice)}/carte)`,
+      `Qte : ${bambaQty} carte(s)${bambaQty > 1 ? ` — Total : ${formatMoney(totalQtyPrice)}` : ` — Total : ${formatMoney(totalQtyPrice)}`}`,
       ...(discountAmount > 0 ? [`Coupon : ${appliedCoupon?.code ?? ''} (-${formatMoney(discountAmount)})`] : []),
       ...(wantCustomDomain && normalizedCustomDomain
         ? [`Domaine : ${normalizedCustomDomain}${domainSurcharge > 0 ? ` (+${formatMoney(domainSurcharge)})` : ' (inclus)'}`]
         : []),
-      `Qte : ${packageSelection.quantity} carte(s)`,
     ];
     if (orderContact.deliveryCity) lines.push(`Ville : ${orderContact.deliveryCity}`);
+    if (bambaDesc.trim()) lines.push(``, `Description : ${bambaDesc.trim()}`);
     lines.push(``, `Merci de me rappeler pour finaliser le design !`);
     return lines.join('\n');
-  }, [appliedCoupon, discountAmount, domainSurcharge, finalPrice, normalizedCustomDomain, orderContact.deliveryCity, packageSelection, profile.fullName, profile.phone, wantCustomDomain]);
+  }, [appliedCoupon, bambaDesc, bambaQty, discountAmount, domainSurcharge, finalPrice, normalizedCustomDomain, orderContact.deliveryCity, packageSelection, profile.fullName, profile.phone, wantCustomDomain]);
   const bambaWhatsAppUrl = useMemo(() => buildWhatsAppUrl(bambaBrief), [bambaBrief]);
+
+  function handleBambaWhatsApp(e) {
+    e.preventDefault();
+    // Fire-and-forget: save order to DB (don't block WA opening)
+    submitCleEnMainOrder({
+      name: profile.fullName,
+      phone: profile.phone,
+      city: orderContact.deliveryCity,
+      packKey: selectedPackKey,
+      quantity: bambaQty,
+      description: bambaDesc,
+    }).catch(() => { /* silently ignore — WA message is the fallback */ });
+    window.open(bambaWhatsAppUrl, '_blank', 'noopener,noreferrer');
+  }
 
   assetRef.current = assets;
 
@@ -540,9 +637,6 @@ export function BuilderView() {
 
   useEffect(() => {
     let active = true;
-    QRCode.toDataURL(finalCardUrl, { margin: 1, width: 280, color: { dark: '#102331', light: '#0000' } })
-      .then((url) => { if (active) setQrCodeDataUrl(url); })
-      .catch(() => { if (active) setQrCodeDataUrl(''); });
     QRCode.toDataURL(finalCardUrl, { margin: 1, width: 200, color: { dark: '#1a1a1a', light: '#ffffff' } })
       .then((url) => { if (active) setPreviewQrUrl(url); })
       .catch(() => { if (active) setPreviewQrUrl(''); });
@@ -554,6 +648,31 @@ export function BuilderView() {
       .then((d) => setInventory(d.inventory ?? {}))
       .catch(() => setInventory({}));
   }, []);
+
+  useEffect(() => {
+    if (!bambaMode) return;
+    setEditorMode('canvas');
+    setEditingField(null);
+    setToolbarPanel(null);
+  }, [bambaMode]);
+
+  useEffect(() => {
+    if (bambaMode || !showEditHints) return undefined;
+
+    const timer = window.setTimeout(() => dismissEditHints(), 1500);
+    return () => window.clearTimeout(timer);
+  }, [bambaMode, showEditHints]);
+
+  useEffect(() => {
+    if (!toolbarPanel) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setToolbarPanel(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toolbarPanel]);
 
   useEffect(() => {
     return () => {
@@ -607,18 +726,88 @@ export function BuilderView() {
     updateAsset(assetKey, { ...cur, remoteUrl, sourceType: remoteUrl ? 'url' : 'none', previewUrl: remoteUrl, file: null });
   }
 
+  function dismissEditHints() {
+    setShowEditHints(false);
+    try {
+      window.sessionStorage.setItem('tapal-edit-hints-seen', 'true');
+    } catch {
+      // ignore session storage failures
+    }
+  }
+
+  function handleRemoveAsset(assetKey) {
+    const currentAsset = assets[assetKey];
+    if (currentAsset?.previewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(currentAsset.previewUrl);
+    }
+    updateAsset(assetKey, { ...defaultAssets[assetKey] });
+  }
+
   const adjustAsset = (assetKey, field, value) =>
     updateAsset(assetKey, { ...assets[assetKey], [field]: value });
-  adjustAssetRef.current = adjustAsset;
+
+  function handleEditField(key, element) {
+    dismissEditHints();
+    setToolbarPanel(null);
+    if (INLINE_TEXT_FIELDS.has(key) && element) {
+      const rect = element.getBoundingClientRect();
+      setEditingField({ type: 'inline', key, rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height } });
+    } else {
+      setEditingField({ type: key === 'socials' ? 'socials' : 'field', key });
+    }
+  }
+
+  function handleEditImage(key) {
+    dismissEditHints();
+    setToolbarPanel(null);
+    setEditingField({ type: 'image', key });
+  }
+
+  function handleOpenToolbarPanel(panel) {
+    dismissEditHints();
+    setEditingField(null);
+    setToolbarPanel((current) => (current === panel ? null : panel));
+  }
+
+  function handleSelectPack(packKey) {
+    setSelectedPackKey(packKey);
+    if (packKey === 'starter') {
+      setWantCustomDomain(false);
+      setCustomDomain('');
+      setDomainResult(null);
+    }
+  }
+
+  function handleEnterCheckout() {
+    dismissEditHints();
+    setEditingField(null);
+    setToolbarPanel(null);
+    setEditorMode('checkout');
+  }
+
+  function handleExitCheckout() {
+    setEditorMode('canvas');
+    setEditingField(null);
+    setToolbarPanel(null);
+  }
+
+  function handleCancelValidation() {
+    setShowValidation(false);
+    setSavedOrderId(null);
+    setSavedFinalCardUrl('');
+    setSavedPreviewQrUrl('');
+  }
+
+  function handleToggleCustomDomain(value) {
+    setWantCustomDomain(value);
+    if (!value) {
+      setCustomDomain('');
+      setDomainResult(null);
+    }
+  }
 
   function applyPromptToCard() {
     setCustomization((c) => ({ ...c, material: promptSuggestion.material, finish: promptSuggestion.finish, foil: promptSuggestion.foil }));
-  }
-
-  async function copyBrief() {
-    await navigator.clipboard.writeText(orderBrief);
-    setCopyState('copied');
-    window.setTimeout(() => setCopyState('idle'), 1800);
   }
 
   async function applyCoupon() {
@@ -682,6 +871,7 @@ export function BuilderView() {
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         finalPrice,
         discountAmount,
+        businessCards: selectedPackKey === 'business' ? businessCards : null,
         assets: { avatar: serializeAsset(assets.avatar), artwork: serializeAsset(assets.artwork), cover: serializeAsset(assets.cover), logo: serializeAsset(assets.logo) },
       };
       const formData = new FormData();
@@ -724,6 +914,7 @@ export function BuilderView() {
           couponCode: appliedCoupon ? appliedCoupon.code : null,
           finalPrice,
           discountAmount,
+          businessCards: selectedPackKey === 'business' ? businessCards : null,
           assets: { avatar: serializeAsset(assets.avatar), artwork: serializeAsset(assets.artwork), cover: serializeAsset(assets.cover), logo: serializeAsset(assets.logo) },
         };
         const formData = new FormData();
@@ -737,7 +928,7 @@ export function BuilderView() {
         orderId = orderResponse.order.orderId;
       }
 
-      const checkoutResponse = await startCheckout(orderId, finalPrice);
+      const checkoutResponse = await startCheckout(orderId);
 
       if (checkoutResponse.paymentConfigured && checkoutResponse.paymentUrl) {
         setSubmitState({
@@ -763,21 +954,442 @@ export function BuilderView() {
     }
   }
 
-  const cardVars = {
-    '--card-base': materialPreview.base,
-    '--card-edge': materialPreview.edge,
-    '--card-ink': materialPreview.ink,
-    '--card-accent': activeAccent,
-    '--card-foil': foilColor,
+  const layoutOptions = [
+    { key: 'classic', label: 'Classique', thumb: 'cl' },
+    { key: 'banner', label: 'Banniere', thumb: 'bn' },
+    { key: 'split', label: 'Bicolonne', thumb: 'sp' },
+    { key: 'minimal', label: 'Minimal', thumb: 'mn' },
+    { key: 'bold', label: 'Bold', thumb: 'bd' },
+    { key: 'grid', label: 'Grille', thumb: 'gr' },
+    { key: 'elegant', label: 'Elegant', thumb: 'el' },
+    { key: 'gradient', label: 'Gradient', thumb: 'gd' },
+    { key: 'custom', label: 'Sur mesure', thumb: 'cu' },
+  ];
+  const fontOptions = [
+    { key: 'moderne', label: 'Moderne', sample: 'Aa' },
+    { key: 'elegant', label: 'Elegant', sample: 'Aa' },
+    { key: 'technique', label: 'Technique', sample: 'Aa' },
+    { key: 'arrondi', label: 'Arrondi', sample: 'Aa' },
+    { key: 'roboto', label: 'Google', sample: 'Aa' },
+    { key: 'sf', label: 'Apple', sample: 'Aa' },
+    { key: 'segoe', label: 'Microsoft', sample: 'Aa' },
+  ];
+  const toolbarTitleMap = {
+    layout: 'Mise en page',
+    theme: 'Theme',
+    colors: 'Couleurs',
+    physical: 'Carte physique',
   };
-  const phoneVars = {
-    '--accent': activeAccent,
-    '--preview-surface': customization.bgColor || activeTheme.surface,
-    '--preview-highlight': activeTheme.highlight,
-    '--preview-text': customization.textColor || activeTheme.text,
-    '--preview-panel': activeTheme.panel,
-    '--preview-font': fontStyleMap[customization.fontStyle] || fontStyleMap.moderne,
-  };
+  const PANEL_ORDER = ['layout', 'theme', 'colors', 'physical'];
+  const currentPanelIdx = PANEL_ORDER.indexOf(toolbarPanel);
+  const prevPanel = currentPanelIdx > 0 ? PANEL_ORDER[currentPanelIdx - 1] : null;
+  const nextPanel = currentPanelIdx < PANEL_ORDER.length - 1 ? PANEL_ORDER[currentPanelIdx + 1] : null;
+  const currentLayoutLabel = layoutOptions.find((option) => option.key === cardLayout)?.label || 'Classique';
+
+  function renderToolbarPanel() {
+    if (!toolbarPanel || editorMode === 'checkout') return null;
+
+    // Physical panel: same overlay style as other panels
+    if (toolbarPanel === 'physical') {
+      return (
+        <div className="toolbar-panel-overlay" onClick={() => setToolbarPanel(null)}>
+        <div className="toolbar-panel-sheet" role="dialog" aria-label="Carte physique" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="toolbar-panel-head">
+            <div>
+              <p className="toolbar-panel-kicker">Outils</p>
+              <h3>Carte physique</h3>
+            </div>
+            <button type="button" className="field-editor-close" onClick={() => setToolbarPanel(null)} aria-label="Fermer">
+              Fermer
+            </button>
+          </div>
+          <div className="toolbar-panel-body">
+            <div className="form-grid">
+              <label className="field">
+                <span>Materiau</span>
+                <select value={customization.material} onChange={(event) => updateCustomization('material', event.target.value)}>
+                  {Object.keys(materialCatalog).map((material) => {
+                    const outOfStock = inventory[`material:${material}`]?.inStock === false;
+                    return (
+                      <option key={material} value={material} disabled={outOfStock}>
+                        {material}{outOfStock ? ' - epuise' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="field">
+                <span>Finition</span>
+                <select value={customization.finish} onChange={(event) => updateCustomization('finish', event.target.value)}>
+                  <option>Matte</option>
+                  <option>Soft matte</option>
+                  <option>Satin</option>
+                  <option>Gloss</option>
+                </select>
+              </label>
+              <label className="field span-full">
+                <span>Dorure</span>
+                <select value={customization.foil} onChange={(event) => updateCustomization('foil', event.target.value)}>
+                  {Object.keys(foilCatalog).map((foil) => {
+                    const outOfStock = inventory[`foil:${foil}`]?.inStock === false;
+                    return (
+                      <option key={foil} value={foil} disabled={outOfStock}>
+                        {foil}{outOfStock ? ' - epuise' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+            </div>
+            <label className="field span-full">
+              <span>Message au verso</span>
+              <input type="text" value={customization.backsideMessage} onChange={(event) => updateCustomization('backsideMessage', event.target.value)} />
+            </label>
+            <div className="toggle-row">
+              <label className="toggle-pill">
+                <input type="checkbox" checked={customization.includeQr} onChange={(event) => updateCustomization('includeQr', event.target.checked)} />
+                <span>QR code au verso</span>
+              </label>
+              <label className="toggle-pill">
+                <input type="checkbox" checked={customization.includeLogo} onChange={(event) => updateCustomization('includeLogo', event.target.checked)} />
+                <span>Logo au recto</span>
+              </label>
+            </div>
+
+            {/* ── Logo placement controls ─────────────────── */}
+            {customization.includeLogo && (
+              <div className="placement-controls">
+                <p className="placement-label">Logo</p>
+                <AssetField
+                  title="Image du logo"
+                  asset={assets.logo}
+                  onFileChange={(event) => handleAssetFile('logo', event.target.files?.[0] ?? null)}
+                  onRemoteChange={(value) => handleAssetRemote('logo', value)}
+                  onAdjust={(field, value) => adjustAsset('logo', field, value)}
+                />
+                <div className="placement-row">
+                  <label className="field">
+                    <span>Position</span>
+                    <select value={customization.logoPosition} onChange={(event) => updateCustomization('logoPosition', event.target.value)}>
+                      <option value="top-left">Haut gauche</option>
+                      <option value="top-right">Haut droite</option>
+                      <option value="bottom-left">Bas gauche</option>
+                      <option value="bottom-right">Bas droite</option>
+                      <option value="center">Centre</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Taille</span>
+                    <select value={customization.logoSize} onChange={(event) => updateCustomization('logoSize', event.target.value)}>
+                      <option value="small">Petit</option>
+                      <option value="medium">Moyen</option>
+                      <option value="large">Grand</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* ── QR placement controls ───────────────────── */}
+            {customization.includeQr && (
+              <div className="placement-controls">
+                <p className="placement-label">QR Code</p>
+                <div className="placement-row">
+                  <label className="field">
+                    <span>Position</span>
+                    <select value={customization.qrPosition} onChange={(event) => updateCustomization('qrPosition', event.target.value)}>
+                      <option value="center">Centre</option>
+                      <option value="top-left">Haut gauche</option>
+                      <option value="top-right">Haut droite</option>
+                      <option value="bottom-left">Bas gauche</option>
+                      <option value="bottom-right">Bas droite</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Taille</span>
+                    <select value={customization.qrSize} onChange={(event) => updateCustomization('qrSize', event.target.value)}>
+                      <option value="small">Petit</option>
+                      <option value="medium">Moyen</option>
+                      <option value="large">Grand</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            <AssetField
+              title="Visuel recto (carte NFC physique)"
+              asset={assets.artwork}
+              onFileChange={(event) => handleAssetFile('artwork', event.target.files?.[0] ?? null)}
+              onRemoteChange={(value) => handleAssetRemote('artwork', value)}
+              onAdjust={(field, value) => adjustAsset('artwork', field, value)}
+              rotationEnabled
+            />
+
+            {/* ── NFC Activation Guide ─────────────────────── */}
+            <NfcGuide />
+
+            <div className="wizard-actions wizard-actions--inline">
+              <button type="button" className="primary-btn" onClick={handleEnterCheckout}>
+                Continuer vers la commande
+              </button>
+            </div>
+          </div>
+          <div className="toolbar-panel-nav">
+            {prevPanel ? (
+              <button type="button" className="toolbar-nav-btn toolbar-nav-btn--prev" onClick={() => setToolbarPanel(prevPanel)}>
+                ← {toolbarTitleMap[prevPanel]}
+              </button>
+            ) : <span />}
+          </div>
+        </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="toolbar-panel-overlay" onClick={() => setToolbarPanel(null)}>
+        <div className="toolbar-panel-sheet" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={toolbarTitleMap[toolbarPanel]}>
+          <div className="toolbar-panel-head">
+            <div>
+              <p className="toolbar-panel-kicker">Outils</p>
+              <h3>{toolbarTitleMap[toolbarPanel]}</h3>
+            </div>
+            <button type="button" className="field-editor-close" onClick={() => setToolbarPanel(null)} aria-label="Fermer le panneau">
+              Fermer
+            </button>
+          </div>
+
+          {toolbarPanel === 'layout' && (
+            <div className="toolbar-panel-body">
+              <p className="field-label-sm">Modeles</p>
+              <div className="template-gallery stagger-children" style={{ marginBottom: '1rem' }}>
+                {cardTemplates.map((tpl) => {
+                  const TplIcon = TEMPLATE_ICON_MAP[tpl.key];
+                  return (
+                    <div key={tpl.key} className="template-card hover-lift" onClick={() => applyTemplate(tpl)}>
+                      <span className="tpl-icon">{TplIcon ? <TplIcon /> : tpl.key.slice(0, 2).toUpperCase()}</span>
+                      <span className="label">{t(tpl.labelKey) || tpl.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="field-label-sm">Choisissez le format de votre carte digitale</p>
+              <div className="layout-picker">
+                {layoutOptions.map((layout) => (
+                  <button
+                    key={layout.key}
+                    type="button"
+                    className={`layout-chip${cardLayout === layout.key ? ' active' : ''}${layout.key === 'custom' ? ' layout-chip-custom' : ''}`}
+                    onClick={() => setCardLayout(layout.key)}
+                  >
+                    <span className={`layout-thumb lt-${layout.thumb}`} />
+                    <span>{layout.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <p className="toolbar-note">
+                La couverture n'apparait que sur les layouts Banner, Split, Gradient et Sur mesure.
+              </p>
+
+              {cardLayout === 'custom' && (
+                <div className="custom-layout-panel">
+                  <div className="custom-layout-banner">
+                    <span>Notre studio creera un layout unique selon vos instructions.</span>
+                  </div>
+                  <label className="field">
+                    <span>Decrivez le layout souhaite</span>
+                    <textarea
+                      rows="4"
+                      value={customization.customLayoutDescription ?? ''}
+                      placeholder="Ex : photo en plein fond avec nom en bas, couleurs turquoise et blanc, style minimaliste luxe..."
+                      onChange={(event) => updateCustomization('customLayoutDescription', event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>URL de reference (optionnel)</span>
+                    <input
+                      type="url"
+                      value={customization.customLayoutRefUrl ?? ''}
+                      placeholder="https://exemple.com/design-ref"
+                      onChange={(event) => updateCustomization('customLayoutRefUrl', event.target.value)}
+                    />
+                  </label>
+                  <label className="field upload-field">
+                    <span>Image de reference (optionnel)</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        if (customRefPreview?.startsWith('blob:')) URL.revokeObjectURL(customRefPreview);
+                        setCustomRefFile(file);
+                        setCustomRefPreview(file ? URL.createObjectURL(file) : '');
+                      }}
+                    />
+                  </label>
+                  {customRefPreview && (
+                    <div className="custom-ref-preview">
+                      <span>Apercu reference</span>
+                      <img src={customRefPreview} alt="Reference design" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {toolbarPanel === 'theme' && (
+            <div className="toolbar-panel-body">
+              <div className="toolbar-section">
+                <p className="field-label-sm">Theme</p>
+                <div className="theme-grid">
+                  {Object.entries(themeCatalog).map(([key, theme]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`theme-chip${activeThemeKey === key ? ' active' : ''}`}
+                      onClick={() => {
+                        setAutoStyle(false);
+                        updateCustomization('themeKey', key);
+                      }}
+                    >
+                      <span className="theme-dot" style={{ background: theme.accent }} />
+                      {theme.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="toolbar-section">
+                <p className="field-label-sm">Style de texte</p>
+                <div className="font-style-picker">
+                  {fontOptions.map((font) => (
+                    <button
+                      key={font.key}
+                      type="button"
+                      className={`font-chip${customization.fontStyle === font.key ? ' active' : ''}`}
+                      data-font={font.key}
+                      onClick={() => updateCustomization('fontStyle', font.key)}
+                    >
+                      <span className="font-sample">{font.sample}</span>
+                      <span>{font.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="field span-full">
+                <span>Label carte</span>
+                <input type="text" value={customization.cardLabel} onChange={(event) => updateCustomization('cardLabel', event.target.value)} />
+              </label>
+
+              <div className="animation-section">
+                <div className="animation-toggle-row">
+                  <div>
+                    <p className="animation-title">Animations</p>
+                    <p className="animation-subtitle">Transitions et effets sur la carte digitale</p>
+                  </div>
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={customization.animationEnabled ?? false} onChange={(event) => updateCustomization('animationEnabled', event.target.checked)} />
+                    <span className="toggle-track" />
+                  </label>
+                </div>
+                {customization.animationEnabled && (
+                  <label className="field">
+                    <span>Decrivez l'animation souhaitee</span>
+                    <textarea
+                      rows="3"
+                      value={customization.animationDescription ?? ''}
+                      placeholder="Ex : apparition progressive de chaque section, fond avec particules flottantes, nom avec effet shimmer dore..."
+                      onChange={(event) => updateCustomization('animationDescription', event.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
+
+          {toolbarPanel === 'colors' && (
+            <div className="toolbar-panel-body toolbar-panel-body--compact">
+              <div className="field span-full">
+                <span className="field-label-sm">Couleur d'accent</span>
+                <label className={`accent-picker-label${autoStyle ? ' accent-picker-locked' : ''}`}>
+                  <span className="accent-swatch-lg" style={{ background: activeAccent }} />
+                  <span className="accent-hex">{activeAccent.toUpperCase()}</span>
+                  <span className="accent-pick-hint">Choisir</span>
+                  <input
+                    type="color"
+                    value={autoStyle ? promptSuggestion.accent : customization.accent}
+                    disabled={autoStyle}
+                    onChange={(event) => updateCustomization('accent', event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="field span-full">
+                <span className="field-label-sm">Couleur du texte</span>
+                <label className="accent-picker-label">
+                  <span className="accent-swatch-lg" style={{ background: customization.textColor || '#e8ddd0', border: customization.textColor ? 'none' : '2px dashed #555' }} />
+                  <span className="accent-hex">{customization.textColor ? customization.textColor.toUpperCase() : 'Auto'}</span>
+                  {customization.textColor && (
+                    <button
+                      type="button"
+                      className="color-reset-btn"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        updateCustomization('textColor', '');
+                      }}
+                    >
+                      X
+                    </button>
+                  )}
+                  <input type="color" value={customization.textColor || '#e8ddd0'} onChange={(event) => updateCustomization('textColor', event.target.value)} />
+                </label>
+              </div>
+
+              <div className="field span-full">
+                <span className="field-label-sm">Couleur de fond</span>
+                <label className="accent-picker-label">
+                  <span className="accent-swatch-lg" style={{ background: customization.bgColor || '#0c1b2b', border: customization.bgColor ? 'none' : '2px dashed #555' }} />
+                  <span className="accent-hex">{customization.bgColor ? customization.bgColor.toUpperCase() : 'Auto'}</span>
+                  {customization.bgColor && (
+                    <button
+                      type="button"
+                      className="color-reset-btn"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        updateCustomization('bgColor', '');
+                      }}
+                    >
+                      X
+                    </button>
+                  )}
+                  <input type="color" value={customization.bgColor || '#0c1b2b'} onChange={(event) => updateCustomization('bgColor', event.target.value)} />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ── Panel navigation footer ── */}
+          <div className="toolbar-panel-nav">
+            {prevPanel ? (
+              <button type="button" className="toolbar-nav-btn toolbar-nav-btn--prev" onClick={() => setToolbarPanel(prevPanel)}>
+                ← {toolbarTitleMap[prevPanel]}
+              </button>
+            ) : <span />}
+            {nextPanel ? (
+              <button type="button" className="toolbar-nav-btn toolbar-nav-btn--next" onClick={() => setToolbarPanel(nextPanel)}>
+                {toolbarTitleMap[nextPanel]} →
+              </button>
+            ) : <span />}
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-root">
@@ -790,30 +1402,68 @@ export function BuilderView() {
         </div>
         <div className="mode-tabs">
           <button type="button" className={`mode-tab${!bambaMode ? ' active' : ''}`} onClick={() => setBambaMode(false)}>
-            Studio
+            {t('nav.canvas')}
           </button>
           <button type="button" className={`mode-tab mode-tab-cle${bambaMode ? ' active' : ''}`} onClick={() => setBambaMode(true)}>
-            Clé en main
+            {t('nav.turnkey')}
+          </button>
+        </div>
+        <div className="topbar-utils">
+          <div className="lang-picker">
+            {getSupportedLanguages().map((l) => (
+              <button key={l.code} type="button" className={`lang-btn${lang === l.code ? ' active' : ''}`} onClick={() => setI18nLang(l.code)}>
+                {l.flag}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="dark-toggle btn-press" onClick={toggleDark} title={t(`darkMode.${darkMode}`)}>
+            <span className="icon">{effectiveTheme === 'dark' ? <SvgSun /> : <SvgMoon />}</span>
+            <span>{effectiveTheme === 'dark' ? t('darkMode.light') : t('darkMode.dark')}</span>
+          </button>
+          <button type="button" className="voice-trigger-btn btn-press" aria-label="Commander par voix" onClick={() => setShowVoice(true)}>
+            <SvgMic />
           </button>
         </div>
       </header>
 
-      {/* ── MAIN LAYOUT ────────────────────────────────────────────── */}
-      <div className={`studio-layout${mobileView === 'preview' ? ' show-preview' : ''}`}>
+      {/* ── ONBOARDING ─────────────────────────────────────────── */}
+      {showOnboarding && (
+        <div className="onboarding-overlay" onClick={finishOnboarding}>
+          <div className="onboarding-card anim-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="onboarding-step-icon">{onboardingSteps[onboardingStep].svgIcon}</div>
+            <div className="onboarding-step-title">{t(onboardingSteps[onboardingStep].titleKey)}</div>
+            <div className="onboarding-step-desc">{t(onboardingSteps[onboardingStep].descKey)}</div>
+            <div className="onboarding-dots">
+              {onboardingSteps.map((_, i) => (
+                <div key={i} className={`onboarding-dot${i === onboardingStep ? ' active' : ''}`} />
+              ))}
+            </div>
+            <div className="onboarding-actions">
+              <button type="button" className="onboarding-skip" onClick={finishOnboarding}>
+                {t('builder.onboarding.skip')}
+              </button>
+              <button type="button" className="btn-primary btn-press" onClick={() => {
+                if (onboardingStep < onboardingSteps.length - 1) setOnboardingStep(onboardingStep + 1);
+                else finishOnboarding();
+              }}>
+                {onboardingStep < onboardingSteps.length - 1 ? t('builder.onboarding.next') : t('builder.onboarding.start')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* LEFT — FORM PANE */}
-        <aside className="form-pane">
-          <form className="form-scroll" onSubmit={handleSubmit}>
-
-            {/* ═══ CLÉ EN MAIN MODE ════════════════════════════════ */}
-            {bambaMode ? (
-              <>
+      <div className={`studio-layout${!bambaMode ? ' studio-layout--canvas' : ''}`}>
+        {bambaMode ? (
+          <>
+            <aside className="form-pane">
+              <form className="form-scroll" onSubmit={handleSubmit}>
                 <div className="cle-banner">
                   <div className="cle-banner-icon">⚡</div>
                   <div>
-                    <h2>Service Clé en main</h2>
-                    <p>Donnez votre nom et WhatsApp. Notre studio crée tout et vous contacte pour validation.</p>
-                    <div className="delay-badge">⏱ Délai supplémentaire&nbsp;: 2–5 jours ouvrés</div>
+                    <h2>Service Cle en main</h2>
+                    <p>Donnez votre nom et WhatsApp. Notre studio cree tout et vous contacte pour validation.</p>
+                    <div className="delay-badge">Delai supplementaire : 2 a 5 jours ouvres</div>
                   </div>
                 </div>
 
@@ -825,18 +1475,24 @@ export function BuilderView() {
                   <div className="form-grid">
                     <label className="field span-full">
                       <span>Nom complet</span>
-                      <input type="text" value={profile.fullName} placeholder="Awa Ndiaye"
-                        onChange={(e) => updateProfile('fullName', e.target.value)} />
+                      <input type="text" value={profile.fullName} placeholder="Awa Ndiaye" onChange={(event) => updateProfile('fullName', event.target.value)} />
                     </label>
                     <label className="field">
                       <span>WhatsApp</span>
-                      <input type="tel" value={profile.phone} placeholder="+221 77 000 00 00"
-                        onChange={(e) => updateProfile('phone', e.target.value)} />
+                      <input type="tel" value={profile.phone} placeholder="+221 77 000 00 00" onChange={(event) => updateProfile('phone', event.target.value)} />
                     </label>
                     <label className="field">
                       <span>Ville</span>
-                      <input type="text" value={orderContact.deliveryCity} placeholder="Dakar"
-                        onChange={(e) => updateOrderContact('deliveryCity', e.target.value)} />
+                      <input type="text" value={orderContact.deliveryCity} placeholder="Dakar" onChange={(event) => updateOrderContact('deliveryCity', event.target.value)} />
+                    </label>
+                    <label className="field span-full">
+                      <span>Decrivez ce que vous voulez <span className="field-optional">(optionnel)</span></span>
+                      <textarea
+                        rows="3"
+                        value={bambaDesc}
+                        placeholder="Ex: carte noire avec mon logo doré, style luxe minimaliste, secteur finance..."
+                        onChange={(e) => setBambaDesc(e.target.value)}
+                      />
                     </label>
                   </div>
                 </div>
@@ -848,16 +1504,7 @@ export function BuilderView() {
                   </div>
                   <div className="pack-list">
                     {Object.values(packCatalog).map((pack) => (
-                      <button key={pack.key} type="button"
-                        className={`pack-row${selectedPackKey === pack.key ? ' active' : ''}${pack.discountBadge ? ' pack-row-deal' : ''}`}
-                        onClick={() => {
-                          setSelectedPackKey(pack.key);
-                          if (pack.key === 'starter') {
-                            setWantCustomDomain(false);
-                            setCustomDomain('');
-                            setDomainResult(null);
-                          }
-                        }}>
+                      <button key={pack.key} type="button" className={`pack-row${selectedPackKey === pack.key ? ' active' : ''}${pack.discountBadge ? ' pack-row-deal' : ''}`} onClick={() => handleSelectPack(pack.key)}>
                         <div className="pack-row-info">
                           <strong>{pack.name}{pack.discountBadge && <span className="pack-discount-badge">{pack.discountBadge}</span>}</strong>
                           <small>{pack.caption}</small>
@@ -865,868 +1512,247 @@ export function BuilderView() {
                         <div className="pack-row-price-wrap">
                           <span className="pack-row-price">{formatMoney(pack.price)}</span>
                         </div>
-                        <span className="pack-row-check">{selectedPackKey === pack.key ? '✓' : ''}</span>
+                        <span className="pack-row-check">{selectedPackKey === pack.key ? '\u2713' : ''}</span>
                       </button>
                     ))}
+                  </div>
+
+                  {/* ── Quantity + volume pricing ── */}
+                  <div className="qty-section">
+                    <p className="qty-label">Nombre de cartes</p>
+                    <div className="qty-stepper">
+                      <button type="button" className="qty-btn" onClick={() => setBambaQty((q) => Math.max(1, q - 1))} disabled={bambaQty <= 1}>−</button>
+                      <span className="qty-value">{bambaQty}</span>
+                      <button type="button" className="qty-btn" onClick={() => setBambaQty((q) => q + 1)}>+</button>
+                    </div>
+                    {(() => {
+                      // Per-card price: pack price / pack included quantity
+                      const unit = Math.round((packageSelection?.price ?? 0) / (packageSelection?.quantity ?? 1));
+                      let disc = 0;
+                      let label = '';
+                      if (bambaQty >= 10) { disc = 30; label = '−30%'; }
+                      else if (bambaQty >= 5) { disc = 20; label = '−20%'; }
+                      else if (bambaQty >= 3) { disc = 10; label = '−10%'; }
+                      const total = Math.round(unit * bambaQty * (1 - disc / 100));
+                      return (
+                        <div className="qty-pricing">
+                          {disc > 0 && <span className="qty-discount-badge">{label} remise volume</span>}
+                          <span className="qty-total">{formatMoney(total)}</span>
+                          <span className="qty-unit-hint">{formatMoney(Math.round(total / bambaQty))}/carte</span>
+                        </div>
+                      );
+                    })()}
+                    {bambaQty >= 3 && bambaQty < 5 && <p className="qty-hint">Commandez 5+ cartes pour bénéficier de −20%</p>}
+                    {bambaQty >= 5 && bambaQty < 10 && <p className="qty-hint">Commandez 10+ cartes pour bénéficier de −30%</p>}
                   </div>
                 </div>
 
                 <div className="form-card">
                   <div className="form-card-header">
                     <span className="step-dot">3</span>
-                    <h3>Votre résumé de commande</h3>
+                    <h3>Votre resume de commande</h3>
                   </div>
                   <pre className="brief-preview">{bambaBrief}</pre>
-                  <a className="whatsapp-btn" href={bambaWhatsAppUrl} target="_blank" rel="noreferrer">
-                    <WhatsAppIcon />
-                    Envoyer via WhatsApp
-                  </a>
-                </div>
-              </>
-
-            ) : (
-              /* ═══ STUDIO MODE ════════════════════════════════════ */
-              <>
-                {/* Mobile step nav */}
-                <nav className="step-nav">
-                  {[
-                    { key: 'profile', num: '1', label: 'Profil' },
-                    { key: 'images', num: '2', label: 'Images' },
-                    { key: 'style', num: '3', label: 'Style' },
-                    { key: 'physical', num: '4', label: 'Carte' },
-                    { key: 'delivery', num: '5', label: 'Livraison' },
-                    { key: 'summary', num: '6', label: 'Résumé' },
-                    { key: 'payment', num: '7', label: 'Payer' },
-                  ].map((s) => (
-                    <button key={s.key} type="button"
-                      className={`step-nav-item${activeSection === s.key ? ' active' : ''}`}
-                      onClick={() => { sectionRefs.current[s.key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
-                      <span className="step-nav-num">{s.num}</span>
-                      <span className="step-nav-label">{s.label}</span>
-                    </button>
-                  ))}
-                </nav>
-
-                {/* 1. Profil digital */}
-                <div className="form-card" ref={setSectionRef('profile')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">1</span>
-                    <h3>Profil digital</h3>
-                  </div>
-                  <div className="form-grid">
-                    {profileFields.filter((f) => f.key !== 'location').map((field) => (
-                      <label className="field" key={field.key}>
-                        <span>{field.label}</span>
-                        <input type={field.type} value={profile[field.key]}
-                          onChange={(e) => updateProfile(field.key, e.target.value)} />
-                      </label>
-                    ))}
-                    <label className="field span-full">
-                      <span>Bio</span>
-                      <textarea rows="2" value={profile.bio} onChange={(e) => updateProfile('bio', e.target.value)} />
-                    </label>
-                  </div>
-                  <div style={{ marginTop: '.75rem' }}>
-                    <p className="field-label-sm">Localisation / Lieu de travail</p>
-                    <LocationPicker
-                      value={profile.location}
-                      onChange={(v) => updateProfile('location', v)}
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Images */}
-                <div className="form-card" ref={setSectionRef('images')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">2</span>
-                    <h3>Images</h3>
-                  </div>
-                  <AssetField title="Photo de profil (carte digitale)"
-                    asset={assets.avatar}
-                    onFileChange={(e) => handleAssetFile('avatar', e.target.files?.[0] ?? null)}
-                    onRemoteChange={(v) => handleAssetRemote('avatar', v)}
-                    onAdjust={(f, v) => adjustAsset('avatar', f, v)} />
-                  <AssetField title="Visuel recto (carte NFC physique)"
-                    asset={assets.artwork}
-                    onFileChange={(e) => handleAssetFile('artwork', e.target.files?.[0] ?? null)}
-                    onRemoteChange={(v) => handleAssetRemote('artwork', v)}
-                    onAdjust={(f, v) => adjustAsset('artwork', f, v)}
-                    rotationEnabled />
-                  <AssetField title="Logo de l'entreprise (optionnel)"
-                    asset={assets.logo}
-                    onFileChange={(e) => handleAssetFile('logo', e.target.files?.[0] ?? null)}
-                    onRemoteChange={(v) => handleAssetRemote('logo', v)}
-                    onAdjust={(f, v) => adjustAsset('logo', f, v)} />
-                </div>
-
-                {/* 3. Style digital */}
-                <div className="form-card" ref={setSectionRef('style')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">3</span>
-                    <h3>Style digital</h3>
-                  </div>
-                  <div className="form-grid controls-grid">
-                    <div className="field span-full">
-                      <span className="field-label-sm">Couleur d'accent</span>
-                      <label className={`accent-picker-label${autoStyle ? ' accent-picker-locked' : ''}`}>
-                        <span className="accent-swatch-lg" style={{ background: activeAccent }} />
-                        <span className="accent-hex">{activeAccent.toUpperCase()}</span>
-                        <span className="accent-pick-hint">Choisir →</span>
-                        <input type="color"
-                          value={autoStyle ? promptSuggestion.accent : customization.accent}
-                          disabled={autoStyle}
-                          onChange={(e) => updateCustomization('accent', e.target.value)} />
-                      </label>
-                    </div>
-
-                    {/* Text color */}
-                    <div className="field">
-                      <span className="field-label-sm">Couleur du texte</span>
-                      <label className="accent-picker-label">
-                        <span className="accent-swatch-lg" style={{ background: customization.textColor || '#e8ddd0', border: customization.textColor ? 'none' : '2px dashed #555' }} />
-                        <span className="accent-hex">{customization.textColor ? customization.textColor.toUpperCase() : 'Auto'}</span>
-                        {customization.textColor && (
-                          <button type="button" className="color-reset-btn" onClick={() => updateCustomization('textColor', '')}>✕</button>
-                        )}
-                        <input type="color"
-                          value={customization.textColor || '#e8ddd0'}
-                          onChange={(e) => updateCustomization('textColor', e.target.value)} />
-                      </label>
-                    </div>
-
-                    {/* Background color */}
-                    <div className="field">
-                      <span className="field-label-sm">Couleur de fond</span>
-                      <label className="accent-picker-label">
-                        <span className="accent-swatch-lg" style={{ background: customization.bgColor || '#0c1b2b', border: customization.bgColor ? 'none' : '2px dashed #555' }} />
-                        <span className="accent-hex">{customization.bgColor ? customization.bgColor.toUpperCase() : 'Auto'}</span>
-                        {customization.bgColor && (
-                          <button type="button" className="color-reset-btn" onClick={() => updateCustomization('bgColor', '')}>✕</button>
-                        )}
-                        <input type="color"
-                          value={customization.bgColor || '#0c1b2b'}
-                          onChange={(e) => updateCustomization('bgColor', e.target.value)} />
-                      </label>
-                    </div>
-
-                    {/* Font style */}
-                    <div className="field span-full">
-                      <span className="field-label-sm">Style de texte</span>
-                      <div className="font-style-picker">
-                        {[
-                          { key: 'moderne',   label: 'Moderne',   sample: 'Aa' },
-                          { key: 'elegant',   label: 'Élégant',   sample: 'Aa' },
-                          { key: 'technique', label: 'Technique', sample: 'Aa' },
-                          { key: 'arrondi',   label: 'Arrondi',   sample: 'Aa' },
-                          { key: 'roboto',    label: 'Google',    sample: 'Aa' },
-                          { key: 'sf',        label: 'Apple',     sample: 'Aa' },
-                          { key: 'segoe',     label: 'Microsoft', sample: 'Aa' },
-                        ].map((f) => (
-                          <button key={f.key} type="button"
-                            className={`font-chip${customization.fontStyle === f.key ? ' active' : ''}`}
-                            data-font={f.key}
-                            onClick={() => updateCustomization('fontStyle', f.key)}>
-                            <span className="font-sample">{f.sample}</span>
-                            <span>{f.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <label className="field span-full">
-                      <span>Label carte</span>
-                      <input type="text" value={customization.cardLabel}
-                        onChange={(e) => updateCustomization('cardLabel', e.target.value)} />
-                    </label>
-                  </div>
-                  <div>
-                    <p className="field-label-sm">Mise en page de la carte digitale</p>
-                    <div className="layout-picker">
-                      {[
-                        { key: 'classic', label: 'Classique', thumb: 'cl' },
-                        { key: 'banner', label: 'Bannière', thumb: 'bn' },
-                        { key: 'split', label: 'Bicolonne', thumb: 'sp' },
-                        { key: 'minimal', label: 'Minimal', thumb: 'mn' },
-                        { key: 'custom', label: 'Sur mesure', thumb: 'cu' },
-                      ].map((l) => (
-                        <button key={l.key} type="button"
-                          className={`layout-chip${cardLayout === l.key ? ' active' : ''}${l.key === 'custom' ? ' layout-chip-custom' : ''}`}
-                          onClick={() => setCardLayout(l.key)}>
-                          <span className={`layout-thumb lt-${l.thumb}`} />
-                          <span>{l.label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {cardLayout === 'custom' && (
-                      <div className="custom-layout-panel">
-                        <div className="custom-layout-banner">
-                          <span>✨ Notre studio créera un layout unique selon vos instructions.</span>
-                        </div>
-                        <label className="field">
-                          <span>Décrivez le layout souhaité</span>
-                          <textarea rows="4"
-                            value={customization.customLayoutDescription ?? ''}
-                            placeholder="Ex : Photo en plein fond avec nom en bas, couleurs turquoise et blanc, style minimaliste luxe..."
-                            onChange={(e) => updateCustomization('customLayoutDescription', e.target.value)} />
-                        </label>
-                        <label className="field">
-                          <span>URL de référence (optionnel)</span>
-                          <input type="url"
-                            value={customization.customLayoutRefUrl ?? ''}
-                            placeholder="https://exemple.com/design-ref"
-                            onChange={(e) => updateCustomization('customLayoutRefUrl', e.target.value)} />
-                        </label>
-                        <label className="field upload-field">
-                          <span>Image de référence (optionnel)</span>
-                          <input type="file" accept="image/png,image/jpeg,image/webp"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null;
-                              if (customRefPreview?.startsWith('blob:')) URL.revokeObjectURL(customRefPreview);
-                              setCustomRefFile(file);
-                              setCustomRefPreview(file ? URL.createObjectURL(file) : '');
-                            }} />
-                        </label>
-                        {customRefPreview && (
-                          <div className="custom-ref-preview">
-                            <span>Aperçu référence</span>
-                            <img src={customRefPreview} alt="Référence design" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── COVER IMAGE ───────────────────────────────── */}
-                  <div className="cover-field-section">
-                    <p className="field-label-sm">Image de couverture</p>
-                    <p className="cover-field-hint">Visible en haut de la carte digitale (surtout en mode Bannière).</p>
-                    <div className="asset-source-grid">
-                      <label className="field span-full upload-field">
-                        <span>Depuis l'appareil</span>
-                        <input type="file" accept="image/png,image/jpeg,image/webp"
-                          onChange={(e) => handleAssetFile('cover', e.target.files?.[0] ?? null)} />
-                      </label>
-                      <label className="field span-full">
-                        <span>Ou lien image (URL)</span>
-                        <input type="url" value={assets.cover.remoteUrl} placeholder="https://example.com/cover.jpg"
-                          onChange={(e) => handleAssetRemote('cover', e.target.value)} />
-                      </label>
-                    </div>
-                    {assets.cover.previewUrl && (
-                      <div className="cover-preview-wrap">
-                        <img className="cover-preview-img" src={assets.cover.previewUrl} alt="cover" />
-                        <button type="button" className="cover-remove-btn"
-                          onClick={() => handleAssetFile('cover', null)}>✕ Supprimer</button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="animation-section">
-                    <div className="animation-toggle-row">
-                      <div>
-                        <p className="animation-title">✨ Animations</p>
-                        <p className="animation-subtitle">Transitions et effets sur la carte digitale</p>
-                      </div>
-                      <label className="toggle-switch">
-                        <input type="checkbox"
-                          checked={customization.animationEnabled ?? false}
-                          onChange={(e) => updateCustomization('animationEnabled', e.target.checked)} />
-                        <span className="toggle-track" />
-                      </label>
-                    </div>
-                    {customization.animationEnabled && (
-                      <label className="field">
-                        <span>Décrivez l'animation souhaitée</span>
-                        <textarea rows="3"
-                          value={customization.animationDescription ?? ''}
-                          placeholder="Ex : Apparition progressive de chaque section, fond avec particules flottantes, nom avec effet shimmer doré..."
-                          onChange={(e) => updateCustomization('animationDescription', e.target.value)} />
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                {/* 4. Carte NFC physique */}
-                <div className="form-card" ref={setSectionRef('physical')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">4</span>
-                    <h3>Carte NFC physique</h3>
-                  </div>
-                  <div className="form-grid">
-                    <label className="field">
-                      <span>Matériau</span>
-                      <select value={customization.material} onChange={(e) => updateCustomization('material', e.target.value)}>
-                        {Object.keys(materialCatalog).map((m) => {
-                          const outOfStock = inventory[`material:${m}`]?.inStock === false;
-                          return (
-                            <option key={m} value={m} disabled={outOfStock}>
-                              {m}{outOfStock ? ' — épuisé' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Finition</span>
-                      <select value={customization.finish} onChange={(e) => updateCustomization('finish', e.target.value)}>
-                        <option>Matte</option><option>Soft matte</option><option>Satin</option><option>Gloss</option>
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Dorure</span>
-                      <select value={customization.foil} onChange={(e) => updateCustomization('foil', e.target.value)}>
-                        {Object.keys(foilCatalog).map((f) => {
-                          const outOfStock = inventory[`foil:${f}`]?.inStock === false;
-                          return (
-                            <option key={f} value={f} disabled={outOfStock}>
-                              {f}{outOfStock ? ' — épuisé' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Message au verso</span>
-                      <input type="text" value={customization.backsideMessage}
-                        onChange={(e) => updateCustomization('backsideMessage', e.target.value)} />
-                    </label>
-                  </div>
-                  <div className="toggle-row">
-                    <label className="toggle-pill">
-                      <input type="checkbox" checked={customization.includeQr} onChange={(e) => updateCustomization('includeQr', e.target.checked)} />
-                      <span>QR code au verso</span>
-                    </label>
-                    <label className="toggle-pill">
-                      <input type="checkbox" checked={customization.includeLogo} onChange={(e) => updateCustomization('includeLogo', e.target.checked)} />
-                      <span>Logo au recto</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* 5. Livraison */}
-                <div className="form-card" ref={setSectionRef('delivery')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">5</span>
-                    <h3>Informations de livraison</h3>
-                  </div>
-                  <div className="form-grid">
-                    {orderContactFields.map((field) => (
-                      <label className="field" key={field.key}>
-                        <span>{field.label}</span>
-                        <input type={field.type} value={orderContact[field.key]}
-                          onChange={(e) => updateOrderContact(field.key, e.target.value)} />
-                      </label>
-                    ))}
-                    <label className="field span-full">
-                      <span>Instructions de livraison</span>
-                      <textarea rows="2" value={orderContact.deliveryNotes}
-                        onChange={(e) => updateOrderContact('deliveryNotes', e.target.value)} />
-                    </label>
-                  </div>
-                  {(() => {
-                    const loc = `${orderContact.deliveryCity || ''} ${orderContact.deliveryAddress || ''} ${profile.location || ''}`.toLowerCase();
-                    if (!loc.trim()) return null;
-                    const snTerms = ['sénégal','senegal','dakar','thiès','thies','saint-louis','ziguinchor','mbour','kaolack','diourbel','louga','tambacounda','kolda','sédhiou','sedhiou','matam','kaffrine','kédougou','kedougou','fatick','touba','rufisque','pikine','guédiawaye',' sn,', ',sn'];
-                    const isSn = snTerms.some((t) => loc.includes(t));
-                    return (
-                      <div className={`delivery-estimate${isSn ? ' delivery-estimate-local' : ' delivery-estimate-intl'}`}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        {isSn
-                          ? 'Livraison estimée au Sénégal : 2 à 5 jours ouvrés'
-                          : 'Livraison hors Sénégal : 1 semaine à 1 mois selon la destination'}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* 6. Récapitulatif */}
-                <div className="form-card" ref={setSectionRef('summary')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">6</span>
-                    <h3>Récapitulatif</h3>
-                  </div>
-                  <div className="receipt-ticket">
-                    <div className="receipt-header">
-                      <span className="receipt-brand">TEKKO</span>
-                      <span className="receipt-subtitle">Bon de commande</span>
-                    </div>
-                    <div className="receipt-divider" />
-                    <div className="receipt-row"><span>Client</span><strong>{orderContact.name || profile.fullName || '—'}</strong></div>
-                    <div className="receipt-row"><span>Email</span><strong>{orderContact.email || '—'}</strong></div>
-                    <div className="receipt-row"><span>WhatsApp</span><strong>{orderContact.phone || '—'}</strong></div>
-                    <div className="receipt-row"><span>Ville</span><strong>{orderContact.deliveryCity || '—'}</strong></div>
-                    <div className="receipt-divider" />
-                    <div className="receipt-row"><span>Matériau</span><strong>{customization.material}</strong></div>
-                    <div className="receipt-row"><span>Finition</span><strong>{customization.finish}</strong></div>
-                    <div className="receipt-row"><span>Dorure</span><strong>{customization.foil}</strong></div>
-                    {customization.includeQr && <div className="receipt-row"><span>QR code</span><strong>Oui</strong></div>}
-                    {customization.includeLogo && <div className="receipt-row"><span>Logo</span><strong>Oui</strong></div>}
-                    {wantCustomDomain && normalizedCustomDomain && (
-                      <div className="receipt-row"><span>Domaine</span><strong>{normalizedCustomDomain}</strong></div>
-                    )}
-                    <div className="receipt-tear" />
-                  </div>
-                </div>
-
-                {/* 7. Pack et paiement */}
-                <div className="form-card" ref={setSectionRef('payment')}>
-                  <div className="form-card-header">
-                    <span className="step-dot">7</span>
-                    <h3>Pack et paiement</h3>
-                  </div>
-                  <div className="pack-list">
-                    {Object.values(packCatalog).map((pack) => (
-                      <button key={pack.key} type="button"
-                        className={`pack-row${selectedPackKey === pack.key ? ' active' : ''}${pack.discountBadge ? ' pack-row-deal' : ''}`}
-                        onClick={() => {
-                          setSelectedPackKey(pack.key);
-                          if (pack.key === 'starter') {
-                            setWantCustomDomain(false);
-                            setCustomDomain('');
-                            setDomainResult(null);
-                          }
-                        }}>
-                        <div className="pack-row-info">
-                          <strong>{pack.name}{pack.discountBadge && <span className="pack-discount-badge">{pack.discountBadge}</span>}</strong>
-                          <small>{pack.caption}</small>
-                        </div>
-                        <div className="pack-row-price-wrap">
-                          <span className="pack-row-price">{formatMoney(pack.price)}</span>
-                        </div>
-                        <span className="pack-row-check">{selectedPackKey === pack.key ? '✓' : ''}</span>
+                  {bambaQty > 5 ? (
+                    <div className="bamba-large-order">
+                      <p className="bamba-large-order-note">Pour les commandes de plus de 5 cartes, le paiement se fait à la livraison. Envoyez votre commande via WhatsApp et notre équipe vous contacte.</p>
+                      <button type="button" className="whatsapp-btn" onClick={handleBambaWhatsApp}>
+                        <WhatsAppIcon />
+                        Commander via WhatsApp
                       </button>
-                    ))}
-                  </div>
-                  {selectedPackKey !== 'starter' && <div className="domain-option-section">
-                    <label className="toggle-pill">
-                      <input
-                        type="checkbox"
-                        checked={wantCustomDomain}
-                        onChange={(e) => {
-                          setWantCustomDomain(e.target.checked);
-                          if (!e.target.checked) {
-                            setCustomDomain('');
-                            setDomainResult(null);
-                          }
-                        }}
-                      />
-                      <span>Je veux un nom de domaine personnalise</span>
-                    </label>
-                    {wantCustomDomain && (
-                      <div className="domain-checker-wrap">
-                        <p className="domain-note">Entrez le domaine souhaite. TEKKO couvre jusqu'a 6 000 FCFA/an. Au-dela, la difference est a votre charge.</p>
-                        <DomainChecker
-                          value={customDomain}
-                          onChange={setCustomDomain}
-                          onResult={setDomainResult}
-                        />
-                        {domainValidationMessage && (
-                          <div className="domain-help domain-help-warn">{domainValidationMessage}</div>
-                        )}
-                      </div>
-                    )}
-                  </div>}
-                  <div className="price-table" style={{ marginTop: '0.85rem' }}>
-                    <div className="price-row"><span>Pack {packageSelection.name}</span><strong>{formatMoney(packageSelection.price)}</strong></div>
-                    {customization.material === 'Brushed metal' && (
-                      <div className="price-row"><span>+ Métal brossé</span><strong>{formatMoney(20000)}</strong></div>
-                    )}
-                    {customization.foil !== 'No foil' && (
-                      <div className="price-row"><span>+ Dorure {customization.foil.replace(' foil', '')}</span><strong>{formatMoney(5000)}</strong></div>
-                    )}
-                    {discountAmount > 0 && (
-                      <div className="price-row price-row-discount">
-                        <span>🏷 Coupon {appliedCoupon.code}</span>
-                        <strong>-{formatMoney(discountAmount)}</strong>
-                      </div>
-                    )}
-                    {wantCustomDomain && domainMatchesSelection && domainResult?.available === true && (
-                      <div className="price-row">
-                        <span>Nom de domaine {normalizedCustomDomain}</span>
-                        <strong>{domainSurcharge > 0 ? `+${formatMoney(domainSurcharge)}` : 'Inclus'}</strong>
-                      </div>
-                    )}
-                    <div className="price-row total"><span>Total</span><strong>{formatMoney(finalPrice)}</strong></div>
-                  </div>
-
-                  {/* Coupon */}
-                  <div className="coupon-row">
-                    {!appliedCoupon ? (
-                      <>
-                        <input
-                          className="coupon-input"
-                          type="text"
-                          placeholder="Code promo"
-                          value={couponInput}
-                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponStatus({ state: 'idle', message: '' }); }}
-                          onKeyDown={(e) => e.key === 'Enter' && applyCoupon()}
-                          disabled={couponStatus.state === 'loading'}
-                        />
-                        <button type="button" className="coupon-apply-btn" onClick={applyCoupon} disabled={couponStatus.state === 'loading' || !couponInput.trim()}>
-                          {couponStatus.state === 'loading' ? '...' : 'Appliquer'}
-                        </button>
-                      </>
-                    ) : (
-                      <button type="button" className="coupon-remove-btn" onClick={removeCoupon}>
-                        ✕ Retirer le coupon {appliedCoupon.code}
-                      </button>
-                    )}
-                    {couponStatus.message && (
-                      <span className={`coupon-msg coupon-msg-${couponStatus.state}`}>{couponStatus.message}</span>
-                    )}
-                  </div>
-
-                  {(submitState.status === 'idle' || submitState.status === 'error') && !showValidation ? (
-                    <>
-                      {submitState.status === 'error' && (
-                        <div className="status-banner error">
-                          <strong>{submitState.message}</strong>
-                        </div>
-                      )}
-                      <div className="action-strip">
-                        <a className="whatsapp-btn" href={whatsAppUrl} target="_blank" rel="noreferrer">
-                          <WhatsAppIcon />
-                          WhatsApp
-                        </a>
-                        <button type="button" className="wave-pay-btn" onClick={handleValidate} disabled={isDomainSubmitBlocked}>
-                          Valider ma commande
-                        </button>
-                      </div>
-                    </>
-                  ) : null}
-
-                  {/* ── VALIDATION RECEIPT / PREVIEW ─────── */}
-                  {showValidation && (
-                    <div className="validation-receipt">
-                      <div className="validation-header">
-                        <span className="validation-brand">TEKKO</span>
-                        <span className="validation-subtitle">Récapitulatif de commande</span>
-                      </div>
-                      <div className="receipt-divider" />
-                      <div className="receipt-row"><span>Pack</span><strong>{packageSelection.label}</strong></div>
-                      <div className="receipt-row"><span>Carte</span><strong>{profile.fullName}</strong></div>
-                      {customization.material !== 'Pearl white' && (
-                        <div className="receipt-row"><span>Matériau</span><strong>{customization.material}</strong></div>
-                      )}
-                      {discountAmount > 0 && (
-                        <div className="receipt-row"><span>Coupon {appliedCoupon.code}</span><strong>-{formatMoney(discountAmount)}</strong></div>
-                      )}
-                      {wantCustomDomain && domainResult?.available && (
-                        <div className="receipt-row"><span>Domaine</span><strong>{normalizedCustomDomain}</strong></div>
-                      )}
-                      <div className="receipt-row receipt-total"><span>Total à payer</span><strong>{formatMoney(finalPrice)}</strong></div>
-                      <div className="receipt-divider" />
-                      <div className="validation-preview">
-                        <p className="validation-hint">Scannez ou cliquez pour prévisualiser :</p>
-                        <div className="validation-qr-wrap">
-                          {(savedPreviewQrUrl || previewQrUrl) && <img src={savedPreviewQrUrl || previewQrUrl} alt="QR prévisualisation" className="validation-qr" />}
-                        </div>
-                        <a className="validation-card-link" href={savedFinalCardUrl || finalCardUrl} target="_blank" rel="noreferrer">{(savedFinalCardUrl || finalCardUrl).replace(/^https?:\/\//, '')}</a>
-                        <p className="validation-note">Ce lien deviendra permanent après paiement. Il vous sera aussi envoyé par email.</p>
-                      </div>
-                      <div className="receipt-divider" />
-                      <div className="validation-actions">
-                        <button type="button" className="validation-back-btn" onClick={() => { setShowValidation(false); setSavedOrderId(null); setSavedFinalCardUrl(''); setSavedPreviewQrUrl(''); }}>
-                          ← Modifier
-                        </button>
-                        <button type="button" className="wave-pay-btn" onClick={handleSubmit}>
-                          <WaveIcon />
-                          Payer avec Wave
-                        </button>
-                      </div>
                     </div>
-                  )}
-
-                  {submitState.status === 'saving' && (
-                    <div className="receipt-loading">
-                      <div className="receipt-spinner" />
-                      <span>{submitState.message || 'Enregistrement...'}</span>
-                    </div>
-                  )}
-
-                  {(submitState.status === 'checkout-ready' || submitState.status === 'saved') && submitState.order && (
-                    <div className="receipt-ticket receipt-success">
-                      <div className="receipt-header">
-                        <span className="receipt-check-icon">✓</span>
-                        <span className="receipt-brand">TEKKO</span>
-                        <span className="receipt-subtitle">Commande enregistrée</span>
-                      </div>
-                      <div className="receipt-divider" />
-                      <div className="receipt-row"><span>Commande</span><strong>{submitState.order.orderId?.slice(0, 8).toUpperCase()}</strong></div>
-                      <div className="receipt-row"><span>Montant</span><strong>{formatMoney(finalPrice)}</strong></div>
-                      <div className="receipt-row"><span>Statut</span><strong>{submitState.status === 'checkout-ready' ? 'En attente de paiement' : 'Enregistrée'}</strong></div>
-                      <div className="receipt-divider" />
-                      {submitState.paymentUrl && (
-                        <a className="wave-pay-btn full-width" href={submitState.paymentUrl} target="_blank" rel="noreferrer">
-                          <WaveIcon />
-                          Ouvrir Wave pour payer
-                        </a>
-                      )}
-                      <p className="receipt-email-note">
-                        Après confirmation du paiement, vous recevrez par email le lien de votre carte digitale ainsi que le reçu PDF téléchargeable.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </form>
-        </aside>
-
-        {/* RIGHT — PREVIEW PANE */}
-        <section className="preview-pane"
-          style={{
-            '--accent': activeAccent,
-            '--preview-surface': activeTheme.surface,
-            '--preview-highlight': activeTheme.highlight,
-            '--preview-text': activeTheme.text,
-            '--preview-panel': activeTheme.panel,
-          }}>
-
-          {/* Preview top bar */}
-          <div className="preview-top-bar">
-            <div className="preview-meta-chips">
-              <span className="meta-chip">{packageSelection.name}</span>
-              <span className="meta-chip price-chip">{formatMoney(totalPrice)}</span>
-              <span className="meta-chip">{customization.material}</span>
-            </div>
-            <div className="preview-switcher">
-              <button type="button" className={previewTab === 'digital' ? 'active' : ''} onClick={() => { userSwitchedPreview.current = true; setPreviewTab('digital'); setTimeout(() => { userSwitchedPreview.current = false; }, 3000); }}>
-                Digitale
-              </button>
-              <button type="button" className={previewTab === 'physical' ? 'active' : ''} onClick={() => { userSwitchedPreview.current = true; setPreviewTab('physical'); setTimeout(() => { userSwitchedPreview.current = false; }, 3000); }}>
-                Physique
-              </button>
-            </div>
-          </div>
-
-          {/* DIGITAL PREVIEW */}
-          {previewTab === 'digital' && (
-            <div className="phone-wrap">
-              <div className="phone-shell">
-                <div className="phone-notch" />
-                <div className={`phone-screen dl-${cardLayout}`} style={phoneVars}>
-
-                  {/* CLASSIC */}
-                  {cardLayout === 'classic' && (<>
-                    <div className="dl-hero">
-                      <span className="phone-badge">{customization.cardLabel}</span>
-                      {logoUrl && <img className="dl-company-logo" src={logoUrl} alt="logo" style={{ opacity: assets.logo.opacity }} />}
-                      <div className="dl-hero-photo photo-frame gesture-target" ref={avatarUrl ? avatarGestureRef : null}
-                        title="Glisser pour repositionner · Molette/Pincer pour zoomer">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt={profile.fullName} className="framed-image"
-                            style={{ objectPosition: `${assets.avatar.positionX}% ${assets.avatar.positionY}%`, transform: `scale(${assets.avatar.zoom}) rotate(${assets.avatar.rotation}deg)`, opacity: assets.avatar.opacity }} />
-                        ) : <span className="dl-hero-initials">{initials}</span>}
-                      </div>
-                      <h3>{profile.fullName}</h3>
-                      <p className="role-line">{profile.role} · {profile.company}</p>
-                      <p className="bio-copy">{profile.bio}</p>
-                    </div>
-                    <div className="action-row">
-                      <button type="button">Save contact</button>
-                      <a href={finalCardUrl} className="secondary-action as-button">Open card</a>
-                    </div>
-                    <div className="info-panels">
-                      {profile.phone && <article><span>Tel</span><strong>{profile.phone}</strong></article>}
-                      {profile.email && <article><span>Email</span><strong>{profile.email}</strong></article>}
-                      {profile.website && <article><span>Web</span><strong>{profile.website}</strong></article>}
-                      {profile.location && <article><span>Lieu</span><strong>{profile.location}</strong></article>}
-                    </div>
-                  </>)}
-
-                  {/* BANNER */}
-                  {cardLayout === 'banner' && (<>
-                    <div className="dl-cover" ref={assets.cover.previewUrl ? coverGestureRef : null}
-                      title={assets.cover.previewUrl ? 'Glisser pour repositionner · Molette/Pincer pour zoomer' : undefined}>
-                      {assets.cover.previewUrl ? (
-                        <img className="dl-cover-img" src={assets.cover.previewUrl} alt="cover" />
-                      ) : (
-                        <div className="dl-cover-bg" style={{ background: `linear-gradient(135deg, ${activeAccent} 0%, ${activeTheme.highlight || activeAccent}88 100%)` }} />
-                      )}
-                      <div className="dl-cover-overlay" />
-                      <span className="phone-badge dl-cover-badge">{customization.cardLabel}</span>
-                      <div className="dl-cover-avatar photo-frame gesture-target" ref={avatarUrl ? avatarGestureRef : null}
-                        title="Glisser pour repositionner · Molette/Pincer pour zoomer">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt={profile.fullName} className="framed-image"
-                            style={{ objectPosition: `${assets.avatar.positionX}% ${assets.avatar.positionY}%`, transform: `scale(${assets.avatar.zoom})`, opacity: assets.avatar.opacity }} />
-                        ) : <span>{initials}</span>}
-                      </div>
-                    </div>
-                    <div className="dl-body">
-                      {logoUrl && <img className="dl-company-logo" src={logoUrl} alt="logo" style={{ opacity: assets.logo.opacity }} />}
-                      <h3>{profile.fullName}</h3>
-                      <p className="role-line">{profile.role} · {profile.company}</p>
-                      <p className="bio-copy">{profile.bio}</p>
-                      <div className="action-row">
-                        <button type="button">Save contact</button>
-                        <a href={finalCardUrl} className="secondary-action as-button">Open card</a>
-                      </div>
-                      <div className="info-panels">
-                        {profile.phone && <article><span>Tel</span><strong>{profile.phone}</strong></article>}
-                        {profile.email && <article><span>Email</span><strong>{profile.email}</strong></article>}
-                        {profile.website && <article><span>Web</span><strong>{profile.website}</strong></article>}
-                      </div>
-                    </div>
-                  </>)}
-
-                  {/* SPLIT */}
-                  {cardLayout === 'split' && (
-                    <div className="dl-split-wrap">
-                      <div className="dl-split-left gesture-target" style={{ background: `linear-gradient(180deg, ${activeAccent}cc 0%, ${activeTheme.surface || '#0c1b2b'} 100%)` }}
-                        ref={avatarUrl ? avatarGestureRef : null}
-                        title="Glisser pour repositionner · Molette/Pincer pour zoomer">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt={profile.fullName} className="framed-image"
-                            style={{ objectPosition: `${assets.avatar.positionX}% ${assets.avatar.positionY}%`, transform: `scale(${assets.avatar.zoom})`, opacity: assets.avatar.opacity }} />
-                        ) : <span className="dl-split-initials">{initials}</span>}
-                      </div>
-                      <div className="dl-split-right">
-                        <span className="phone-badge">{customization.cardLabel}</span>
-                        {logoUrl && <img className="dl-company-logo" src={logoUrl} alt="logo" style={{ opacity: assets.logo.opacity }} />}
-                        <h3>{profile.fullName}</h3>
-                        <p className="role-line">{profile.role}</p>
-                        <p className="role-line" style={{ opacity: 0.5 }}>{profile.company}</p>
-                        <button type="button" className="dl-save-btn">Save</button>
-                        <div className="dl-split-links">
-                          {profile.phone && <span>{profile.phone}</span>}
-                          {profile.email && <span>{profile.email}</span>}
-                          {profile.website && <span>{profile.website}</span>}
-                          {profile.location && <span>{profile.location}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* MINIMAL */}
-                  {cardLayout === 'minimal' && (<>
-                    <div className="dl-minimal-top" style={{ background: `linear-gradient(160deg, ${activeTheme.surface || '#0c1b2b'} 0%, ${activeAccent}22 100%)` }}>
-                      <div className="dl-minimal-mono gesture-target" style={{ background: activeAccent }}
-                        ref={avatarUrl ? avatarGestureRef : null}
-                        title="Glisser pour repositionner · Molette/Pincer pour zoomer">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt={profile.fullName} className="framed-image"
-                            style={{ objectPosition: `${assets.avatar.positionX}% ${assets.avatar.positionY}%`, transform: `scale(${assets.avatar.zoom})`, opacity: assets.avatar.opacity }} />
-                        ) : <span>{initials}</span>}
-                      </div>
-                      <h2 className="dl-minimal-name">{profile.fullName}</h2>
-                      <p className="dl-minimal-role">{profile.role}</p>
-                      <p className="dl-minimal-company" style={{ color: activeAccent }}>{profile.company}</p>
-                      {logoUrl && <img className="dl-company-logo dl-company-logo--minimal" src={logoUrl} alt="logo" style={{ opacity: assets.logo.opacity }} />}
-                    </div>
-                    <div className="dl-minimal-links">
-                      {profile.phone && <div className="dl-link-row"><span className="dl-link-type">Tel</span><span>{profile.phone}</span></div>}
-                      {profile.email && <div className="dl-link-row"><span className="dl-link-type">Email</span><span>{profile.email}</span></div>}
-                      {profile.website && <div className="dl-link-row"><span className="dl-link-type">Web</span><span>{profile.website}</span></div>}
-                      {profile.location && <div className="dl-link-row"><span className="dl-link-type">Lieu</span><span>{profile.location}</span></div>}
-                    </div>
-                    <div className="action-row" style={{ padding: '0.5rem 0.8rem 1rem' }}>
-                      <button type="button">Save contact</button>
-                      <a href={finalCardUrl} className="secondary-action as-button">Open card</a>
-                    </div>
-                  </>)}
-
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PHYSICAL CARD PREVIEW */}
-          {previewTab === 'physical' && (
-            <div className="card-wrap">
-              <span className="card-face-label">▸ Recto</span>
-              <div className="nfc-card front" style={cardVars}>
-                <div className="card-artwork-layer gesture-target" ref={artworkUrl ? artworkGestureRef : null}
-                  title="Glisser pour repositionner · Molette/Pincer pour zoomer">
-                  {artworkUrl ? (
-                    <img src={artworkUrl} alt="artwork" className="card-artwork-image"
-                      style={{
-                        objectPosition: `${assets.artwork.positionX}% ${assets.artwork.positionY}%`,
-                        transform: `scale(${assets.artwork.zoom}) rotate(${assets.artwork.rotation}deg)`,
-                        opacity: assets.artwork.opacity,
-                      }} />
-                  ) : null}
-                </div>
-                <div className="card-sheen" data-finish={customization.finish} />
-                <div className="card-front-content" style={{ background: artworkUrl ? (materialPreview.base === '#f5f5f3' ? 'linear-gradient(180deg, rgba(255,255,255,.0) 0%, rgba(0,0,0,.38) 100%)' : 'linear-gradient(180deg, transparent 30%, rgba(0,0,0,.65) 100%)') : 'none' }}>
-                  {!artworkUrl && (
-                    <div className="card-no-art-hint">Ajoutez un visuel</div>
-                  )}
-                  <div>
-                    <span className="brand-mark">TEKKO</span>
-                    {customization.includeLogo && <span className="mini-logo">GeoChifa</span>}
-                  </div>
-                  <div>
-                    {profile.fullName && <h3 style={{ color: materialPreview.ink }}>{profile.fullName}</h3>}
-                    {profile.role && <p style={{ color: materialPreview.ink, opacity: .7 }}>{profile.role}</p>}
-                    {profile.company && profile.company !== 'TEKKO' && <span style={{ color: materialPreview.ink, opacity: .5 }}>{profile.company}</span>}
-                  </div>
-                  <div className="nfc-chip-row">
-                    {customization.foil !== 'No foil' && <div className="nfc-chip" />}
-                    {customization.foil !== 'No foil' && <span>NFC</span>}
-                  </div>
-                </div>
-              </div>
-
-              <span className="card-face-label">▸ Verso</span>
-              <div className="nfc-card back" style={cardVars}>
-                <div className="card-sheen" data-finish={customization.finish} />
-                <div className="card-back-content">
-                  <div>
-                    <span className="qr-label">{customization.includeQr ? 'QR fallback' : 'Tap only'}</span>
-                    <p>{customization.backsideMessage}</p>
-                  </div>
-                  {customization.includeQr && qrCodeDataUrl ? (
-                    <img className="qr-image" src={qrCodeDataUrl} alt="QR" />
                   ) : (
-                    <div className="tap-only-mark">NFC</div>
+                    <button type="button" className="whatsapp-btn" onClick={handleBambaWhatsApp}>
+                      <WhatsAppIcon />
+                      Envoyer via WhatsApp
+                    </button>
                   )}
-                  <strong className="card-url">{finalCardUrl}</strong>
+                </div>
+              </form>
+            </aside>
+
+            <section className="preview-pane preview-pane--bamba" style={{ '--accent': activeAccent, '--preview-surface': activeTheme.surface, '--preview-highlight': activeTheme.highlight, '--preview-text': activeTheme.text, '--preview-panel': activeTheme.panel }}>
+              <div className="preview-top-bar">
+                <div className="preview-meta-chips">
+                  <span className="meta-chip">{packageSelection.name}</span>
+                  <span className="meta-chip price-chip">{formatMoney(finalPrice)}</span>
+                  <span className="meta-chip">{customization.material}</span>
                 </div>
               </div>
-
-              <div className="spec-strip">
-                <span>{customization.material}</span>
-                <span>{customization.finish}</span>
-                <span>{customization.foil}</span>
-                <span className="card-scale-note">Echelle 1:1 (85.6 × 54 mm)</span>
+              <div className="canvas-preview-stage">
+                <CardCanvas
+                  profile={profile}
+                  customization={customization}
+                  cardLayout={cardLayout}
+                  assets={assets}
+                  activeTheme={activeTheme}
+                  activeAccent={activeAccent}
+                  finalCardUrl={finalCardUrl}
+                  initials={initials}
+                  activeSocials={activeSocials}
+                  onEditField={() => {}}
+                  onEditImage={() => {}}
+                  onAdjustAsset={() => {}}
+                  showEditHints={false}
+                />
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="preview-pane preview-pane--canvas" style={{ '--accent': activeAccent, '--preview-surface': activeTheme.surface, '--preview-highlight': activeTheme.highlight, '--preview-text': activeTheme.text, '--preview-panel': activeTheme.panel }}>
+            <div className="preview-top-bar preview-top-bar--canvas">
+              <div className="preview-meta-chips">
+                <span className="meta-chip">{packageSelection.name}</span>
+                <span className="meta-chip price-chip">{formatMoney(finalPrice)}</span>
+                <span className="meta-chip">{customization.material}</span>
+                <span className="meta-chip">{currentLayoutLabel}</span>
+              </div>
+              <div className="canvas-status-copy">
+                <strong>Edition directe</strong>
+                <span>Touchez la carte pour modifier vos champs, images et reseaux.</span>
               </div>
             </div>
-          )}
-        </section>
-      </div>
 
-      {/* ── MOBILE STICKY BAR ──────────────────────────────────────── */}
-      <div className="mobile-bar">
-        <div className="mobile-price">
-          <span className="mobile-pack">{packageSelection.name}</span>
-          <strong className="mobile-total">{formatMoney(totalPrice)}</strong>
-        </div>
-        {mobileView === 'preview' && (
-          <div className="mobile-preview-switcher">
-            <button type="button" className={previewTab === 'digital' ? 'active' : ''} onClick={() => setPreviewTab('digital')}>
-              Digital
-            </button>
-            <button type="button" className={previewTab === 'physical' ? 'active' : ''} onClick={() => setPreviewTab('physical')}>
-              Physique
-            </button>
-          </div>
+            <div className="canvas-preview-stage canvas-preview-stage--duo">
+              <CardCanvas
+                profile={profile}
+                customization={customization}
+                cardLayout={cardLayout}
+                assets={assets}
+                activeTheme={activeTheme}
+                activeAccent={activeAccent}
+                finalCardUrl={finalCardUrl}
+                initials={initials}
+                activeSocials={activeSocials}
+                onEditField={handleEditField}
+                onEditImage={handleEditImage}
+                onAdjustAsset={adjustAsset}
+                showEditHints={showEditHints}
+              />
+              <PhysicalCardMock
+                customization={customization}
+                assets={assets}
+                activeAccent={activeAccent}
+                cardSurface={cardSurface}
+                profile={profile}
+              />
+            </div>
+
+            {editorMode === 'canvas' && renderToolbarPanel()}
+
+            {editorMode === 'canvas' && editingField?.type !== 'inline' && (
+              <FieldEditor
+                editingField={editingField}
+                profile={profile}
+                assets={assets}
+                onFieldChange={updateProfile}
+                onImageFileChange={handleAssetFile}
+                onImageRemoteChange={handleAssetRemote}
+                onImageRemove={handleRemoveAsset}
+                onAdjustAsset={adjustAsset}
+                onClose={() => setEditingField(null)}
+                LocationFieldComponent={LocationPicker}
+              />
+            )}
+
+            {editorMode === 'canvas' && editingField?.type === 'inline' && editingField.rect && (
+              <InlineEditOverlay
+                editingField={editingField}
+                profile={profile}
+                onFieldChange={updateProfile}
+                onClose={() => setEditingField(null)}
+              />
+            )}
+
+            {editorMode === 'canvas' && (
+              <div className="floating-toolbar" role="toolbar" aria-label="Outils du studio">
+                <button type="button" className={`toolbar-btn${toolbarPanel === 'layout' ? ' active' : ''}`} onClick={() => handleOpenToolbarPanel('layout')} aria-label="Modeles et mise en page" aria-pressed={toolbarPanel === 'layout'}>
+                  <span className="toolbar-btn-glyph" aria-hidden="true"><SvgGrid /></span>
+                  <span>Modeles</span>
+                </button>
+                <button type="button" className={`toolbar-btn${toolbarPanel === 'theme' ? ' active' : ''}`} onClick={() => handleOpenToolbarPanel('theme')} aria-label="Theme et typographie" aria-pressed={toolbarPanel === 'theme'}>
+                  <span className="toolbar-btn-glyph" aria-hidden="true">Aa</span>
+                  <span>Theme</span>
+                </button>
+                <button type="button" className={`toolbar-btn${toolbarPanel === 'colors' ? ' active' : ''}`} onClick={() => handleOpenToolbarPanel('colors')} aria-label="Couleurs" aria-pressed={toolbarPanel === 'colors'}>
+                  <span className="toolbar-btn-glyph" aria-hidden="true">#</span>
+                  <span>Couleurs</span>
+                </button>
+                <button type="button" className={`toolbar-btn${toolbarPanel === 'physical' ? ' active' : ''}`} onClick={() => handleOpenToolbarPanel('physical')} aria-label="Carte physique NFC" aria-pressed={toolbarPanel === 'physical'}>
+                  <span className="toolbar-btn-glyph" aria-hidden="true">NFC</span>
+                  <span>Carte physique</span>
+                </button>
+                <button type="button" className="toolbar-btn toolbar-cta btn-press" onClick={handleEnterCheckout} aria-label={t('builder.orderNfc')}>
+                  <span className="toolbar-btn-glyph" aria-hidden="true">Go</span>
+                  <span>Commander</span>
+                </button>
+              </div>
+            )}
+
+            {editorMode === 'checkout' && (
+              <CheckoutWizard
+                profile={profile}
+                orderContact={orderContact}
+                customization={customization}
+                assets={assets}
+                activeTheme={activeTheme}
+                activeAccent={activeAccent}
+                cardLayout={cardLayout}
+                finalCardUrl={finalCardUrl}
+                initials={initials}
+                activeSocials={activeSocials}
+                selectedPackKey={selectedPackKey}
+                packageSelection={packageSelection}
+                inventory={inventory}
+                totalPrice={totalPrice}
+                discountAmount={discountAmount}
+                finalPrice={finalPrice}
+                wantCustomDomain={wantCustomDomain}
+                customDomain={customDomain}
+                normalizedCustomDomain={normalizedCustomDomain}
+                domainResult={domainResult}
+                domainMatchesSelection={domainMatchesSelection}
+                domainSurcharge={domainSurcharge}
+                domainValidationMessage={domainValidationMessage}
+                isDomainSubmitBlocked={isDomainSubmitBlocked}
+                couponInput={couponInput}
+                couponStatus={couponStatus}
+                appliedCoupon={appliedCoupon}
+                submitState={submitState}
+                showValidation={showValidation}
+                previewQrUrl={previewQrUrl}
+                savedFinalCardUrl={savedFinalCardUrl}
+                savedPreviewQrUrl={savedPreviewQrUrl}
+                onBack={handleExitCheckout}
+                onSelectPack={handleSelectPack}
+                onUpdateOrderContact={updateOrderContact}
+                onUpdateCustomization={updateCustomization}
+                onSetWantCustomDomain={handleToggleCustomDomain}
+                onSetCustomDomain={setCustomDomain}
+                onSetDomainResult={setDomainResult}
+                onSetCouponInput={(value) => {
+                  setCouponInput(value);
+                  setCouponStatus({ state: 'idle', message: '' });
+                }}
+                onApplyCoupon={applyCoupon}
+                onRemoveCoupon={removeCoupon}
+                onValidate={handleValidate}
+                onSubmit={handleSubmit}
+                onCancelValidation={handleCancelValidation}
+                onImageFileChange={handleAssetFile}
+                onImageRemoteChange={handleAssetRemote}
+                onAdjustAsset={adjustAsset}
+                DomainCheckerComponent={DomainChecker}
+                whatsAppUrl={whatsAppUrl}
+                businessCards={businessCards}
+                onUpdateBusinessCard={updateBusinessCard}
+              />
+            )}
+          </section>
         )}
-        <button type="button" className={`mobile-toggle${mobileView === 'preview' ? ' active' : ''}`}
-          onClick={() => setMobileView((v) => {
-            if (v === 'form') {
-              mobileScrollPos.current = window.scrollY;
-              return 'preview';
-            }
-            requestAnimationFrame(() => window.scrollTo(0, mobileScrollPos.current));
-            return 'form';
-          })}>
-          {mobileView === 'preview' ? '← Formulaire' : 'Aperçu →'}
-        </button>
       </div>
 
+      <VoiceAssistant isOpen={showVoice} onClose={() => setShowVoice(false)} />
     </div>
   );
 }

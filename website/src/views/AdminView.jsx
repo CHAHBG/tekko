@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchAdminOrders, updateAdminOrder, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchAdminOrders, updateAdminOrder, updateAdminCard, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
 import { formatMoney, getAssetDisplayUrl, materialCatalog, foilCatalog } from '../lib/catalog';
 
 function createDrafts(orders) {
@@ -61,7 +61,7 @@ function deviceLabel(type) {
 }
 
 function AnalyticsBarList({ items }) {
-	if (!items?.length) return <div className="analytics-empty">Aucune donnée</div>;
+	if (!items?.length) return <div className="analytics-empty">Aucune donnÃ©e</div>;
 	const max = Math.max(...items.map((i) => i.visits), 1);
 	return (
 		<div>
@@ -206,8 +206,8 @@ function VisitorMap({ locations }) {
 				const radius = Math.max(5, Math.min(20, (loc.visits / maxVisits) * 20));
 				L.circleMarker([loc.lat, loc.lng], {
 					radius,
-					fillColor: '#e85d26',
-					color: '#e85d26',
+					fillColor: '#1a9d8f',
+					color: '#1a9d8f',
 					weight: 1,
 					opacity: 0.8,
 					fillOpacity: 0.5,
@@ -263,36 +263,38 @@ export function AdminView() {
 	const [inventorySaving, setInventorySaving] = useState(false);
 	const [activeTab, setActiveTab] = useState('orders');
 
-	// ── FILTERS ──────────────────────────────────────────────────
+	// â”€â”€ FILTERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [searchQuery, setSearchQuery] = useState('');
 	const [filterPayment, setFilterPayment] = useState('');
 	const [filterOrder, setFilterOrder] = useState('');
 
-	// ── COUPONS ──────────────────────────────────────────────────
+	// â”€â”€ COUPONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [coupons, setCoupons] = useState([]);
 	const [couponForm, setCouponForm] = useState({ code: '', discountType: 'percent', discountValue: '', maxUses: '' });
 
-	// ── CEREMONIES ───────────────────────────────────────────────
+	// â”€â”€ CEREMONIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [ceremonies, setCeremonies] = useState([]);
 	const [ceremonyDrafts, setCeremonyDrafts] = useState({});
 	const [couponSaving, setCouponSaving] = useState(false);
 	const [couponError, setCouponError] = useState('');
 
-	// ── INVOICES ─────────────────────────────────────────────────
+	// â”€â”€ INVOICES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [invoiceForm, setInvoiceForm] = useState({ clientName: '', clientPhone: '', clientEmail: '', notes: '' });
 	const [invoiceItems, setInvoiceItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
 	const [invoiceSaving, setInvoiceSaving] = useState(false);
 	const [invoiceResult, setInvoiceResult] = useState(null);
 	const [invoiceError, setInvoiceError] = useState('');
 
-	// ── ANALYTICS ────────────────────────────────────────────────
+	// â”€â”€ ANALYTICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [analytics, setAnalytics] = useState(null);
 	const [analyticsVisits, setAnalyticsVisits] = useState([]);
 	const [analyticsLoading, setAnalyticsLoading] = useState(false);
 	const [analyticsPeriod, setAnalyticsPeriod] = useState('7d');
 
-	// ── COLLAPSIBLE ORDERS ───────────────────────────────────────
+	// â”€â”€ COLLAPSIBLE ORDERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [expandedOrders, setExpandedOrders] = useState(new Set());
+	const [cardEditing, setCardEditing] = useState({});
+	const [cardSaving, setCardSaving] = useState({});
 
 	async function handleLogin(event) {
 		event.preventDefault();
@@ -319,7 +321,7 @@ export function AdminView() {
 		window.localStorage.removeItem('tapal-admin-token');
 		setToken('');
 		setOrders([]);
-		setStatus({ type: 'error', message: 'Session expirée. Reconnectez-vous.' });
+		setStatus({ type: 'error', message: 'Session expirÃ©e. Reconnectez-vous.' });
 	}
 
 	async function loadOrders(currentToken) {
@@ -329,7 +331,7 @@ export function AdminView() {
 			const response = await fetchAdminOrders(currentToken);
 			setOrders(response.orders);
 			setDrafts(createDrafts(response.orders));
-			setStatus({ type: 'success', message: `${response.orders.length} commandes chargées.` });
+			setStatus({ type: 'success', message: `${response.orders.length} commandes chargÃ©es.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
@@ -466,7 +468,7 @@ export function AdminView() {
 			setInvoiceResult(result);
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
-			setInvoiceError(error.message ?? 'Erreur lors de la génération.');
+			setInvoiceError(error.message ?? 'Erreur lors de la gÃ©nÃ©ration.');
 		} finally {
 			setInvoiceSaving(false);
 		}
@@ -547,14 +549,83 @@ export function AdminView() {
 			const nextOrders = orders.map((order) => (order.orderId === orderId ? response.order : order));
 			setOrders(nextOrders);
 			setDrafts(createDrafts(nextOrders));
-			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} mise à jour.` });
+			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} mise Ã  jour.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
 		}
 	}
 
-	// ── LOGIN SCREEN ────────────────────────────────────────────────
+	function startCardEdit(order) {
+		setCardEditing((prev) => ({
+			...prev,
+			[order.orderId]: {
+				fullName: order.profile?.fullName ?? '',
+				role: order.profile?.role ?? '',
+				company: order.profile?.company ?? '',
+				phone: order.profile?.phone ?? '',
+				email: order.profile?.email ?? '',
+				website: order.profile?.website ?? '',
+				location: order.profile?.location ?? '',
+				bio: order.profile?.bio ?? '',
+				bgColor: order.customization?.bgColor ?? '',
+				textColor: order.customization?.textColor ?? '',
+				accent: order.customization?.accent ?? '',
+			},
+		}));
+	}
+
+	function updateCardField(orderId, field, value) {
+		setCardEditing((prev) => ({
+			...prev,
+			[orderId]: { ...prev[orderId], [field]: value },
+		}));
+	}
+
+	function cancelCardEdit(orderId) {
+		setCardEditing((prev) => {
+			const next = { ...prev };
+			delete next[orderId];
+			return next;
+		});
+	}
+
+	async function saveCard(orderId) {
+		const fields = cardEditing[orderId];
+		if (!fields) return;
+		setCardSaving((prev) => ({ ...prev, [orderId]: true }));
+		try {
+			const response = await updateAdminCard(orderId, {
+				profile: {
+					fullName: fields.fullName,
+					role: fields.role,
+					company: fields.company,
+					phone: fields.phone,
+					email: fields.email,
+					website: fields.website,
+					location: fields.location,
+					bio: fields.bio,
+				},
+				customization: {
+					bgColor: fields.bgColor,
+					textColor: fields.textColor,
+					accent: fields.accent,
+				},
+			}, token);
+			const nextOrders = orders.map((o) => (o.orderId === orderId ? response.order : o));
+			setOrders(nextOrders);
+			setDrafts(createDrafts(nextOrders));
+			cancelCardEdit(orderId);
+			setStatus({ type: 'success', message: `Carte ${orderId.slice(0, 8)} mise Ã  jour.` });
+		} catch (error) {
+			if (error.status === 401) { handleUnauthorized(); return; }
+			setStatus({ type: 'error', message: error.message });
+		} finally {
+			setCardSaving((prev) => ({ ...prev, [orderId]: false }));
+		}
+	}
+
+	// â”€â”€ LOGIN SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	if (!token) {
 		return (
 			<div className="admin-login-page">
@@ -562,7 +633,7 @@ export function AdminView() {
 					<div className="admin-login-header">
 						<LogoMark />
 						<h1>Panneau Admin</h1>
-						<p>Connectez-vous pour accéder au tableau de bord.</p>
+						<p>Connectez-vous pour accÃ©der au tableau de bord.</p>
 					</div>
 					<form className="admin-login-form" onSubmit={handleLogin}>
 						<label className="admin-field">
@@ -584,7 +655,7 @@ export function AdminView() {
 								required
 								value={loginPassword}
 								onChange={(e) => setLoginPassword(e.target.value)}
-								placeholder="••••••••"
+								placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
 							/>
 						</label>
 						{loginError ? <div className="admin-login-error">{loginError}</div> : null}
@@ -597,7 +668,7 @@ export function AdminView() {
 		);
 	}
 
-	// ── DASHBOARD ───────────────────────────────────────────────────
+	// â”€â”€ DASHBOARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	return (
 		<div className="admin-page">
 			<header className="admin-header">
@@ -608,23 +679,23 @@ export function AdminView() {
 				<div className="admin-header-actions">
 					<a href="/" className="admin-header-link">Studio</a>
 					<button type="button" className="admin-header-link" onClick={() => loadOrders(token)}>
-						<IconRefresh /> Rafraîchir
+						<IconRefresh /> RafraÃ®chir
 					</button>
 					<button type="button" className="admin-header-logout" onClick={handleLogout}>
-						<IconLogout /> Déconnexion
+						<IconLogout /> DÃ©connexion
 					</button>
 				</div>
 			</header>
 
 			<div className="admin-body">
-				{/* ── STATS ROW ──────────────────────────────────────── */}
+				{/* â”€â”€ STATS ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				<div className="admin-stats-row">
 					<div className="admin-stat-card">
 						<span className="admin-stat-label">Commandes totales</span>
 						<strong className="admin-stat-value">{counts.total}</strong>
 					</div>
 					<div className="admin-stat-card">
-						<span className="admin-stat-label">Payées</span>
+						<span className="admin-stat-label">PayÃ©es</span>
 						<strong className="admin-stat-value admin-stat-green">{counts.paid ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
@@ -636,7 +707,7 @@ export function AdminView() {
 						<strong className="admin-stat-value admin-stat-blue">{counts['in-production'] ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
-						<span className="admin-stat-label">Livrées</span>
+						<span className="admin-stat-label">LivrÃ©es</span>
 						<strong className="admin-stat-value">{counts.delivered ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
@@ -649,7 +720,7 @@ export function AdminView() {
 					<div className={`admin-status-banner admin-status-${status.type}`}>{status.message}</div>
 				) : null}
 
-				{/* ── TABS ───────────────────────────────────────────── */}
+				{/* â”€â”€ TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				<div className="admin-tabs">
 					<button
 						type="button"
@@ -677,7 +748,7 @@ export function AdminView() {
 						className={`admin-tab${activeTab === 'ceremonies' ? ' active' : ''}`}
 						onClick={() => setActiveTab('ceremonies')}
 					>
-						Ceremonies {ceremonies.length > 0 && <span style={{ marginLeft: '.3rem', background: '#e85d26', color: '#fff', borderRadius: '10px', padding: '.1rem .45rem', fontSize: '.65rem', fontWeight: 800 }}>{ceremonies.length}</span>}
+						Ceremonies {ceremonies.length > 0 && <span style={{ marginLeft: '.3rem', background: '#1a9d8f', color: '#fff', borderRadius: '10px', padding: '.1rem .45rem', fontSize: '.65rem', fontWeight: 800 }}>{ceremonies.length}</span>}
 					</button>
 					<button
 						type="button"
@@ -695,7 +766,7 @@ export function AdminView() {
 					</button>
 				</div>
 
-				{/* ── ORDERS TAB ─────────────────────────────────────── */}
+				{/* â”€â”€ ORDERS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				{activeTab === 'orders' && (
 					<div className="admin-orders-section">
 						<div className="admin-filters-bar">
@@ -710,6 +781,7 @@ export function AdminView() {
 								<option value="">Tout paiement</option>
 								<option value="pending">En attente</option>
 								<option value="paid">Payé</option>
+								<option value="whatsapp_pending">WhatsApp (Clé en main)</option>
 								<option value="failed">Échoué</option>
 								<option value="unknown">Inconnu</option>
 							</select>
@@ -717,13 +789,13 @@ export function AdminView() {
 								<option value="">Tout statut</option>
 								<option value="submitted">Soumise</option>
 								<option value="in-production">En production</option>
-								<option value="ready">Prête</option>
-								<option value="delivered">Livrée</option>
-								<option value="cancelled">Annulée</option>
+								<option value="ready">PrÃªte</option>
+								<option value="delivered">LivrÃ©e</option>
+								<option value="cancelled">AnnulÃ©e</option>
 							</select>
 							{(searchQuery || filterPayment || filterOrder) && (
 								<button type="button" className="admin-filter-reset" onClick={() => { setSearchQuery(''); setFilterPayment(''); setFilterOrder(''); }}>
-									Réinitialiser
+									RÃ©initialiser
 								</button>
 							)}
 							<span className="admin-filter-count">{filteredOrders.length} / {orders.length}</span>
@@ -751,19 +823,24 @@ export function AdminView() {
 
 								return (
 									<article key={order.orderId} className={`admin-order-card${isExpanded ? ' expanded' : ' collapsed'}`}>
-										{/* ── SUMMARY ROW (always visible) ─────── */}
+										{/* â”€â”€ SUMMARY ROW (always visible) â”€â”€â”€â”€â”€â”€â”€ */}
 										<div className="admin-order-summary" onClick={() => toggleOrder(order.orderId)}>
 											<div className="admin-order-summary-left">
 												{avatarUrl && <img className="admin-order-summary-avatar" src={avatarUrl} alt="" />}
 												<div className="admin-order-summary-info">
 													<strong className="admin-order-summary-name">{order.profile?.fullName}</strong>
 													<span className="admin-order-summary-sub">
-														{order.profile?.role}{order.profile?.company ? ` · ${order.profile.company}` : ''}
+														{order.profile?.role}{order.profile?.company ? ` Â· ${order.profile.company}` : ''}
 													</span>
 												</div>
 											</div>
 											<div className="admin-order-summary-right">
 												<span className="admin-order-summary-pack">{order.packageSelection?.name ?? order.packKey}</span>
+												{order.source === 'cle_en_main' && (
+													<span style={{ background: '#1a9d8f', color: '#fff', borderRadius: '10px', padding: '.1rem .45rem', fontSize: '.62rem', fontWeight: 800 }}>
+														⚡ Clé en main
+													</span>
+												)}
 												<strong className="admin-order-summary-price">{formatMoney(order.packPrice)}</strong>
 												<span className={`admin-pay-badge admin-pay-${draft.paymentStatus}`}>{draft.paymentStatus}</span>
 												<span className={`admin-order-status-badge admin-ostatus-${draft.orderStatus}`}>{statusLabel}</span>
@@ -785,7 +862,7 @@ export function AdminView() {
 											</div>
 										</div>
 
-										{/* ── DETAILS (collapsible) ───────────── */}
+										{/* â”€â”€ DETAILS (collapsible) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 										{isExpanded && (
 											<div className="admin-order-details">
 												<div className="admin-images">
@@ -803,7 +880,7 @@ export function AdminView() {
 													)}
 												</div>
 
-												{/* ── CARD PREVIEWS ─────────────────────────────────── */}
+												{/* â”€â”€ CARD PREVIEWS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 												<div className="admin-card-previews">
 													{order.finalCardUrl && (
 														<div className="admin-preview-digital">
@@ -859,7 +936,7 @@ export function AdminView() {
 													</div>
 												</div>
 
-												{/* ── DOWNLOAD ASSETS ────────────────────────────── */}
+												{/* â”€â”€ DOWNLOAD ASSETS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 												<div className="admin-downloads">
 													<span className="admin-downloads-title">Telecharger pour impression</span>
 													<div className="admin-downloads-row">
@@ -890,6 +967,13 @@ export function AdminView() {
 													{order.profile?.phone && <div className="admin-data-item"><span>Telephone</span><strong>{order.profile.phone}</strong></div>}
 													{order.profile?.email && <div className="admin-data-item"><span>Email</span><strong>{order.profile.email}</strong></div>}
 													{order.orderContact?.deliveryCity && <div className="admin-data-item"><span>Ville</span><strong>{order.orderContact.deliveryCity}</strong></div>}
+													{order.quantity > 1 && <div className="admin-data-item"><span>Quantité</span><strong>{order.quantity} carte(s)</strong></div>}
+													{order.description && (
+														<div className="admin-data-item" style={{ gridColumn: '1 / -1' }}>
+															<span>Description client</span>
+															<strong style={{ whiteSpace: 'pre-wrap' }}>{order.description}</strong>
+														</div>
+													)}
 													{order.finalCardUrl && (
 														<div className="admin-data-item">
 															<span>URL carte</span>
@@ -978,6 +1062,26 @@ export function AdminView() {
 																<p>{order.customization.animationDescription}</p>
 															</div>
 														)}
+													</div>
+												)}
+
+												{/* Business pack â€” show all card profiles */}
+												{order.profile?.businessCards && Array.isArray(order.profile.businessCards) && (
+													<div className="admin-business-cards">
+														<strong style={{ fontSize: '.82rem', marginBottom: '.3rem', display: 'block' }}>Pack Business â€” {order.profile.businessCards.length} cartes</strong>
+														<div className="admin-business-grid">
+															{order.profile.businessCards.map((bc, i) => (
+																<div key={i} className="admin-business-card-item">
+																	<span className="business-card-num">{i + 1}</span>
+																	<div>
+																		<strong>{i === 0 ? (order.profile.fullName || 'Carte principale') : (bc.fullName || 'â€”')}</strong>
+																		{i > 0 && bc.role && <span className="admin-order-summary-sub">{bc.role}</span>}
+																		{i > 0 && bc.email && <span className="admin-order-summary-sub">{bc.email}</span>}
+																		{i > 0 && bc.phone && <span className="admin-order-summary-sub">{bc.phone}</span>}
+																	</div>
+																</div>
+															))}
+														</div>
 													</div>
 												)}
 
@@ -1117,6 +1221,80 @@ export function AdminView() {
 													</label>
 												</div>
 
+												{/* â”€â”€ CARD EDITING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+												<div className="admin-card-edit-section">
+													{!cardEditing[order.orderId] ? (
+														<button type="button" className="admin-btn-ghost" onClick={() => startCardEdit(order)} style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed' }}>
+															Modifier la carte
+														</button>
+													) : (
+														<>
+															<div className="admin-card-edit-header">
+																<strong>Modifier la carte</strong>
+																<button type="button" className="admin-btn-ghost" onClick={() => cancelCardEdit(order.orderId)} style={{ padding: '2px 8px', fontSize: '11px' }}>Annuler</button>
+															</div>
+															<div className="admin-edit-fields">
+																<label className="admin-field">
+																	<span>Nom complet</span>
+																	<input type="text" value={cardEditing[order.orderId].fullName} onChange={(e) => updateCardField(order.orderId, 'fullName', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Fonction</span>
+																	<input type="text" value={cardEditing[order.orderId].role} onChange={(e) => updateCardField(order.orderId, 'role', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Entreprise</span>
+																	<input type="text" value={cardEditing[order.orderId].company} onChange={(e) => updateCardField(order.orderId, 'company', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Telephone</span>
+																	<input type="text" value={cardEditing[order.orderId].phone} onChange={(e) => updateCardField(order.orderId, 'phone', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Email</span>
+																	<input type="text" value={cardEditing[order.orderId].email} onChange={(e) => updateCardField(order.orderId, 'email', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Site web</span>
+																	<input type="text" value={cardEditing[order.orderId].website} onChange={(e) => updateCardField(order.orderId, 'website', e.target.value)} />
+																</label>
+																<label className="admin-field admin-field-full">
+																	<span>Localisation</span>
+																	<input type="text" value={cardEditing[order.orderId].location} onChange={(e) => updateCardField(order.orderId, 'location', e.target.value)} />
+																</label>
+																<label className="admin-field admin-field-full">
+																	<span>Bio</span>
+																	<textarea rows="2" value={cardEditing[order.orderId].bio} onChange={(e) => updateCardField(order.orderId, 'bio', e.target.value)} />
+																</label>
+																<label className="admin-field">
+																	<span>Couleur fond</span>
+																	<div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+																		<input type="color" value={cardEditing[order.orderId].bgColor || '#ffffff'} onChange={(e) => updateCardField(order.orderId, 'bgColor', e.target.value)} style={{ width: 32, height: 28, padding: 0, border: 'none', cursor: 'pointer' }} />
+																		<input type="text" value={cardEditing[order.orderId].bgColor} onChange={(e) => updateCardField(order.orderId, 'bgColor', e.target.value)} style={{ flex: 1 }} />
+																	</div>
+																</label>
+																<label className="admin-field">
+																	<span>Couleur texte</span>
+																	<div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+																		<input type="color" value={cardEditing[order.orderId].textColor || '#000000'} onChange={(e) => updateCardField(order.orderId, 'textColor', e.target.value)} style={{ width: 32, height: 28, padding: 0, border: 'none', cursor: 'pointer' }} />
+																		<input type="text" value={cardEditing[order.orderId].textColor} onChange={(e) => updateCardField(order.orderId, 'textColor', e.target.value)} style={{ flex: 1 }} />
+																	</div>
+																</label>
+																<label className="admin-field">
+																	<span>Couleur accent</span>
+																	<div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+																		<input type="color" value={cardEditing[order.orderId].accent || '#1D7A4E'} onChange={(e) => updateCardField(order.orderId, 'accent', e.target.value)} style={{ width: 32, height: 28, padding: 0, border: 'none', cursor: 'pointer' }} />
+																		<input type="text" value={cardEditing[order.orderId].accent} onChange={(e) => updateCardField(order.orderId, 'accent', e.target.value)} style={{ flex: 1 }} />
+																	</div>
+																</label>
+															</div>
+															<button type="button" className="admin-btn-primary" onClick={() => saveCard(order.orderId)} disabled={cardSaving[order.orderId]} style={{ marginTop: 8, width: '100%' }}>
+																{cardSaving[order.orderId] ? 'Enregistrement...' : 'Sauvegarder la carte'}
+															</button>
+														</>
+													)}
+												</div>
+
 												<div className="admin-order-footer">
 													{order.paymentUrl && (
 														<a href={order.paymentUrl} target="_blank" rel="noreferrer" className="admin-btn-ghost">
@@ -1185,15 +1363,15 @@ export function AdminView() {
 					</div>
 				)}
 
-				{/* ── INVENTORY TAB ───────────────────────────────────── */}
+				{/* â”€â”€ INVENTORY TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				{activeTab === 'inventory' && (
 					<div className="admin-inventory-section">
 						<p className="admin-inventory-desc">
-							Désactivez un matériau ou une dorure pour le griser sur le configurateur client.
+							DÃ©sactivez un matÃ©riau ou une dorure pour le griser sur le configurateur client.
 						</p>
 						<div className="admin-inv-grid">
 							<div className="admin-inv-group">
-								<h3>Matériaux</h3>
+								<h3>MatÃ©riaux</h3>
 								{Object.keys(materialCatalog).map((m) => {
 									const inv = inventory[`material:${m}`];
 									const inStock = inv ? inv.inStock : true;
@@ -1206,7 +1384,7 @@ export function AdminView() {
 												disabled={inventorySaving}
 												onClick={() => toggleInventory('material', m, inStock)}
 											>
-												{inStock ? 'En stock' : 'Épuisé'}
+												{inStock ? 'En stock' : 'Ã‰puisÃ©'}
 											</button>
 										</div>
 									);
@@ -1226,7 +1404,7 @@ export function AdminView() {
 												disabled={inventorySaving}
 												onClick={() => toggleInventory('foil', f, inStock)}
 											>
-												{inStock ? 'En stock' : 'Épuisé'}
+												{inStock ? 'En stock' : 'Ã‰puisÃ©'}
 											</button>
 										</div>
 									);
@@ -1236,11 +1414,11 @@ export function AdminView() {
 					</div>
 				)}
 
-				{/* ── COUPONS TAB ─────────────────────────────────────── */}
+				{/* â”€â”€ COUPONS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				{activeTab === 'coupons' && (
 					<div className="admin-coupons-section">
 						<form className="admin-coupon-form" onSubmit={handleCreateCoupon}>
-							<h3>Créer un coupon</h3>
+							<h3>CrÃ©er un coupon</h3>
 							<div className="admin-coupon-form-row">
 								<label className="admin-field">
 									<span>Code</span>
@@ -1271,7 +1449,7 @@ export function AdminView() {
 									/>
 								</label>
 								<label className="admin-field">
-									<span>Utilisations max (0 = illimité)</span>
+									<span>Utilisations max (0 = illimitÃ©)</span>
 									<input
 										type="number"
 										min="0"
@@ -1283,19 +1461,19 @@ export function AdminView() {
 							</div>
 							{couponError && <div className="admin-login-error">{couponError}</div>}
 							<button type="submit" className="admin-btn-primary" disabled={couponSaving}>
-								{couponSaving ? 'Création...' : 'Créer le coupon'}
+								{couponSaving ? 'CrÃ©ation...' : 'CrÃ©er le coupon'}
 							</button>
 						</form>
 
 						<div className="admin-coupon-list">
-							{coupons.length === 0 && <div className="admin-empty">Aucun coupon créé.</div>}
+							{coupons.length === 0 && <div className="admin-empty">Aucun coupon crÃ©Ã©.</div>}
 							{coupons.map((c) => (
 								<div key={c.code} className="admin-coupon-row">
 									<div className="admin-coupon-info">
 										<strong className="admin-coupon-code">{c.code}</strong>
 										<span className="admin-coupon-meta">
 											{c.discountType === 'percent' ? `${c.discountValue}%` : formatMoney(c.discountValue)}
-											{' · '}
+											{' Â· '}
 											{c.maxUses > 0 ? `${c.usedCount}/${c.maxUses} utilisations` : `${c.usedCount} utilisation${c.usedCount !== 1 ? 's' : ''}`}
 										</span>
 									</div>
@@ -1313,10 +1491,10 @@ export function AdminView() {
 					</div>
 				)}
 
-				{/* ── CEREMONIES TAB ─────────────────────────────────── */}
+				{/* â”€â”€ CEREMONIES TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				{activeTab === 'ceremonies' && (
 					<div className="admin-orders-section">
-						{ceremonies.length === 0 && <div className="admin-empty">Aucune demande de cérémonie.</div>}
+						{ceremonies.length === 0 && <div className="admin-empty">Aucune demande de cÃ©rÃ©monie.</div>}
 						<div className="admin-orders-grid">
 							{ceremonies.map((c) => {
 								const draft = ceremonyDrafts[c.id] ?? { status: c.status, adminNotes: '' };
@@ -1327,13 +1505,13 @@ export function AdminView() {
 											<span className="admin-ceremony-type">{c.eventType}</span>
 										</div>
 										<div className="admin-ceremony-grid">
-											<div className="admin-ceremony-item"><span>Tél</span><strong>{c.contactPhone}</strong></div>
+											<div className="admin-ceremony-item"><span>TÃ©l</span><strong>{c.contactPhone}</strong></div>
 											{c.contactEmail && <div className="admin-ceremony-item"><span>Email</span><strong>{c.contactEmail}</strong></div>}
 											{c.company && <div className="admin-ceremony-item"><span>Entreprise</span><strong>{c.company}</strong></div>}
-											{c.eventName && <div className="admin-ceremony-item"><span>Événement</span><strong>{c.eventName}</strong></div>}
+											{c.eventName && <div className="admin-ceremony-item"><span>Ã‰vÃ©nement</span><strong>{c.eventName}</strong></div>}
 											{c.eventDate && <div className="admin-ceremony-item"><span>Date</span><strong>{c.eventDate}</strong></div>}
 											{c.eventCity && <div className="admin-ceremony-item"><span>Lieu</span><strong>{c.eventCity}</strong></div>}
-											{c.guestCount && <div className="admin-ceremony-item"><span>Invités</span><strong>{c.guestCount}</strong></div>}
+											{c.guestCount && <div className="admin-ceremony-item"><span>InvitÃ©s</span><strong>{c.guestCount}</strong></div>}
 											{c.budget && <div className="admin-ceremony-item"><span>Budget</span><strong>{c.budget}</strong></div>}
 										</div>
 										{c.services?.length > 0 && (
@@ -1350,15 +1528,15 @@ export function AdminView() {
 										<div className="admin-ceremony-status-row">
 											<select value={draft.status} onChange={(e) => setCeremonyDrafts((d) => ({ ...d, [c.id]: { ...d[c.id], status: e.target.value } }))}>
 												<option value="nouveau">Nouveau</option>
-												<option value="contacte">Contacté</option>
-												<option value="devis_envoye">Devis envoyé</option>
-												<option value="confirme">Confirmé</option>
-												<option value="termine">Terminé</option>
-												<option value="annule">Annulé</option>
+												<option value="contacte">ContactÃ©</option>
+												<option value="devis_envoye">Devis envoyÃ©</option>
+												<option value="confirme">ConfirmÃ©</option>
+												<option value="termine">TerminÃ©</option>
+												<option value="annule">AnnulÃ©</option>
 											</select>
 											<input
 												type="text"
-												placeholder="Notes admin…"
+												placeholder="Notes adminâ€¦"
 												value={draft.adminNotes}
 												onChange={(e) => setCeremonyDrafts((d) => ({ ...d, [c.id]: { ...d[c.id], adminNotes: e.target.value } }))}
 											/>
@@ -1384,7 +1562,7 @@ export function AdminView() {
 
 				{activeTab === 'invoices' && (
 					<div className="admin-section">
-						<h2>Générer une Facture</h2>
+						<h2>GÃ©nÃ©rer une Facture</h2>
 						{invoiceResult ? (
 							<div style={{ background: '#f0fff0', border: '1px solid #4caf50', borderRadius: '10px', padding: '1.5rem', marginTop: '1rem' }}>
 								<h3 style={{ color: '#2e7d32', marginBottom: '.8rem' }}>Facture generee -- {invoiceResult.invoiceId}</h3>
@@ -1415,7 +1593,7 @@ export function AdminView() {
 								)}
 								<div style={{ display: 'flex', gap: '.8rem', flexWrap: 'wrap' }}>
 									<button type="button" className="admin-btn-primary" onClick={downloadInvoicePdf}>
-										Télécharger PDF
+										TÃ©lÃ©charger PDF
 									</button>
 									<button type="button" className="admin-btn-secondary" onClick={resetInvoiceForm}>
 										Nouvelle facture
@@ -1436,7 +1614,7 @@ export function AdminView() {
 										/>
 									</div>
 									<div>
-										<label className="admin-label">Téléphone</label>
+										<label className="admin-label">TÃ©lÃ©phone</label>
 										<input
 											type="text"
 											className="admin-input"
@@ -1470,7 +1648,7 @@ export function AdminView() {
 											<input
 												type="number"
 												className="admin-input"
-												placeholder="Qté"
+												placeholder="QtÃ©"
 												min={1}
 												value={item.quantity}
 												onChange={(e) => { const newItems = [...invoiceItems]; newItems[idx] = { ...item, quantity: Number(e.target.value) || 1 }; setInvoiceItems(newItems); }}
@@ -1489,9 +1667,9 @@ export function AdminView() {
 												<button
 													type="button"
 													onClick={() => setInvoiceItems(invoiceItems.filter((_, i) => i !== idx))}
-													style={{ background: 'none', border: 'none', color: '#e85d26', cursor: 'pointer', fontWeight: 700, fontSize: '1.2rem' }}
+													style={{ background: 'none', border: 'none', color: '#1a9d8f', cursor: 'pointer', fontWeight: 700, fontSize: '1.2rem' }}
 												>
-													×
+													Ã—
 												</button>
 											)}
 										</div>
@@ -1499,7 +1677,7 @@ export function AdminView() {
 									<button
 										type="button"
 										onClick={() => setInvoiceItems([...invoiceItems, { description: '', quantity: 1, unitPrice: 0 }])}
-										style={{ background: 'none', border: 'none', color: '#e85d26', cursor: 'pointer', fontWeight: 600, fontSize: '.85rem', padding: '.3rem 0' }}
+										style={{ background: 'none', border: 'none', color: '#1a9d8f', cursor: 'pointer', fontWeight: 600, fontSize: '.85rem', padding: '.3rem 0' }}
 									>
 										+ Ajouter un article
 									</button>
@@ -1519,16 +1697,16 @@ export function AdminView() {
 									/>
 								</div>
 
-								{invoiceError && <p style={{ color: '#e85d26', marginBottom: '.5rem' }}>{invoiceError}</p>}
+								{invoiceError && <p style={{ color: '#1a9d8f', marginBottom: '.5rem' }}>{invoiceError}</p>}
 								<button type="submit" className="admin-btn-primary" disabled={invoiceSaving}>
-									{invoiceSaving ? 'Génération…' : 'Générer la facture'}
+									{invoiceSaving ? 'GÃ©nÃ©rationâ€¦' : 'GÃ©nÃ©rer la facture'}
 								</button>
 							</form>
 						)}
 					</div>
 				)}
 
-				{/* ── ANALYTICS TAB ──────────────────────────────── */}
+				{/* â”€â”€ ANALYTICS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 			{activeTab === 'analytics' && (
 				<div className="admin-analytics-section">
 					<div className="analytics-toolbar">

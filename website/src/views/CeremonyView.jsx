@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { submitCeremony } from '../lib/api';
 import { buildWhatsAppUrl } from '../lib/catalog';
 
@@ -40,6 +40,35 @@ export function CeremonyView() {
     notes: '',
   });
   const [submitState, setSubmitState] = useState({ status: 'idle', message: '' });
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const patch = {};
+    const map = [
+      ['contactName', ['contactName', 'name', 'nom']],
+      ['contactEmail', ['contactEmail', 'email']],
+      ['contactPhone', ['contactPhone', 'phone', 'tel']],
+      ['company', ['company', 'entreprise']],
+      ['eventType', ['eventType', 'type']],
+      ['eventName', ['eventName', 'event']],
+      ['eventDate', ['eventDate', 'date']],
+      ['eventCity', ['eventCity', 'city', 'ville']],
+      ['guestCount', ['guestCount', 'invites']],
+      ['notes', ['notes', 'message']],
+    ];
+    for (const [key, aliases] of map) {
+      for (const a of aliases) {
+        const v = p.get(a);
+        if (v) {
+          patch[key] = v;
+          break;
+        }
+      }
+    }
+    if (Object.keys(patch).length) {
+      setForm((f) => ({ ...f, ...patch }));
+    }
+  }, []);
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 

@@ -1,0 +1,2 @@
+UPDATE orders SET assets_json = REPLACE(assets_json, '"storedUrl":"/uploads/e3c8d638-7309-491e-842c-7f1fd77dcdd5/logo.png"', '"storedUrl":"/uploads/e3c8d638-7309-491e-842c-7f1fd77dcdd5/logo.jpg"') WHERE slug = 'fallou-06ccf6b03bda';
+UPDATE orders SET assets_json = REPLACE(assets_json, '"mimeType":"image/png","originalName":"photo_2_2026-04-18_15-38-50-removebg-preview.png"', '"mimeType":"image/jpeg","originalName":"photo_2026-04-18_16-23-38.jpg"') WHERE slug = 'fallou-06ccf6b03bda';

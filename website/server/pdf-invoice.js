@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit';
+﻿import PDFDocument from 'pdfkit';
 import { request as httpsRequest } from 'https';
 
 function formatMoney(amount) {
@@ -32,14 +32,14 @@ function drawDashedLine(doc, x1, y, x2) {
 /**
  * Generate an invoice / proforma PDF.
  * @param {Object} opts
- * @param {string} opts.invoiceId      — e.g. "INV-0001"
+ * @param {string} opts.invoiceId      â€” e.g. "INV-0001"
  * @param {string} opts.clientName
  * @param {string} opts.clientPhone
  * @param {string} opts.clientEmail
- * @param {Array}  opts.items          — [{ description, quantity, unitPrice }]
- * @param {number} opts.total          — computed total
- * @param {string} [opts.paymentUrl]   — Wave payment link
- * @param {string} [opts.notes]        — optional notes
+ * @param {Array}  opts.items          â€” [{ description, quantity, unitPrice }]
+ * @param {number} opts.total          â€” computed total
+ * @param {string} [opts.paymentUrl]   â€” Wave payment link
+ * @param {string} [opts.notes]        â€” optional notes
  */
 export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, clientEmail, items, total, paymentUrl, notes }) {
   const [tekkoLogo, geochifaLogo] = await Promise.all([
@@ -52,7 +52,7 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
     margins: { top: 40, bottom: 40, left: 50, right: 50 },
     info: {
       Title: `Facture TEKKO ${invoiceId}`,
-      Author: 'TEKKO by GeoChifâ',
+      Author: 'TEKKO by GeoChifÃ¢',
       Subject: 'Facture proforma',
     },
   });
@@ -64,7 +64,7 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
   const cx = doc.page.width / 2;
   const rightX = doc.page.width - 50;
 
-  // ── HEADER ────────────────────────────────────────────────
+  // â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   doc.rect(0, 0, doc.page.width, 85).fill('#1a1a1a');
 
   if (tekkoLogo) {
@@ -77,7 +77,7 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
   doc.font('Helvetica').fontSize(7).fillColor('#999999');
   doc.text('FACTURE PROFORMA', 0, 68, { align: 'center', width: doc.page.width });
 
-  // ── INVOICE ID + DATE ─────────────────────────────────────
+  // â”€â”€ INVOICE ID + DATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let y = 100;
   const dateStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   doc.font('Helvetica-Bold').fontSize(9).fillColor('#1a1a1a');
@@ -88,14 +88,14 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
   drawDashedLine(doc, 50, y, rightX);
   y += 14;
 
-  // ── CLIENT ────────────────────────────────────────────────
+  // â”€â”€ CLIENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   doc.font('Helvetica-Bold').fontSize(7).fillColor('#aaaaaa');
-  doc.text('FACTURÉ À', 50, y);
+  doc.text('FACTURÃ‰ Ã€', 50, y);
   y += 12;
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1a1a');
   doc.text(clientName, 50, y);
   y += 14;
-  const details = [clientPhone, clientEmail].filter(Boolean).join('  ·  ');
+  const details = [clientPhone, clientEmail].filter(Boolean).join('  Â·  ');
   if (details) {
     doc.font('Helvetica').fontSize(8).fillColor('#555555');
     doc.text(details, 50, y);
@@ -105,21 +105,21 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
   drawDashedLine(doc, 50, y, rightX);
   y += 14;
 
-  // ── TABLE HEADER ──────────────────────────────────────────
+  // â”€â”€ TABLE HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   doc.font('Helvetica-Bold').fontSize(7).fillColor('#aaaaaa');
   doc.text('DESCRIPTION', 50, y);
-  doc.text('QTÉ', 320, y, { width: 40, align: 'center' });
+  doc.text('QTÃ‰', 320, y, { width: 40, align: 'center' });
   doc.text('PRIX UNIT.', 370, y, { width: 80, align: 'right' });
   doc.text('TOTAL', rightX - 80, y, { width: 80, align: 'right' });
   y += 14;
   drawDashedLine(doc, 50, y, rightX);
   y += 10;
 
-  // ── LINE ITEMS ────────────────────────────────────────────
+  // â”€â”€ LINE ITEMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   for (const item of items) {
     const lineTotal = (item.quantity || 1) * (item.unitPrice || 0);
     doc.font('Helvetica').fontSize(8.5).fillColor('#1a1a1a');
-    doc.text(item.description || '—', 50, y, { width: 260 });
+    doc.text(item.description || 'â€”', 50, y, { width: 260 });
     doc.text(String(item.quantity || 1), 320, y, { width: 40, align: 'center' });
     doc.font('Helvetica').fontSize(8).fillColor('#555555');
     doc.text(formatMoney(item.unitPrice || 0), 370, y, { width: 80, align: 'right' });
@@ -131,14 +131,14 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
   drawDashedLine(doc, 50, y, rightX);
   y += 14;
 
-  // ── TOTAL ─────────────────────────────────────────────────
+  // â”€â”€ TOTAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1a1a');
-  doc.text('Total à payer', 50, y);
-  doc.font('Helvetica-Bold').fontSize(14).fillColor('#e85d26');
+  doc.text('Total Ã  payer', 50, y);
+  doc.font('Helvetica-Bold').fontSize(14).fillColor('#1a9d8f');
   doc.text(formatMoney(total), 50, y - 1, { align: 'right', width: pw });
   y += 24;
 
-  // ── PAYMENT LINK ──────────────────────────────────────────
+  // â”€â”€ PAYMENT LINK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (paymentUrl) {
     drawDashedLine(doc, 50, y, rightX);
     y += 14;
@@ -150,20 +150,20 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
     const btnW = 220;
     const btnH = 30;
     const btnX = cx - btnW / 2;
-    doc.roundedRect(btnX, y, btnW, btnH, 6).fill('#e85d26');
+    doc.roundedRect(btnX, y, btnW, btnH, 6).fill('#1a9d8f');
     doc.font('Helvetica-Bold').fontSize(10).fillColor('#ffffff');
-    doc.text('Payer avec Wave →', btnX, y + 9, { width: btnW, align: 'center', link: paymentUrl });
+    doc.text('Payer avec Wave â†’', btnX, y + 9, { width: btnW, align: 'center', link: paymentUrl });
     y += btnH + 10;
 
     doc.font('Helvetica').fontSize(7.5).fillColor('#888888');
     doc.text('Ou copiez ce lien :', 50, y);
     y += 12;
-    doc.font('Helvetica').fontSize(7).fillColor('#e85d26');
+    doc.font('Helvetica').fontSize(7).fillColor('#1a9d8f');
     doc.text(paymentUrl, 50, y, { link: paymentUrl, underline: true, width: pw });
     y += 16;
   }
 
-  // ── NOTES ─────────────────────────────────────────────────
+  // â”€â”€ NOTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (notes) {
     drawDashedLine(doc, 50, y, rightX);
     y += 14;
@@ -175,7 +175,7 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
     y += 20;
   }
 
-  // ── FOOTER ────────────────────────────────────────────────
+  // â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const footerY = doc.page.height - 60;
   doc.rect(0, footerY, doc.page.width, 60).fill('#f7f5f1');
 
@@ -187,8 +187,8 @@ export async function generateInvoicePdf({ invoiceId, clientName, clientPhone, c
     } catch { /* skip */ }
   }
   doc.font('Helvetica').fontSize(7).fillColor('#aaaaaa');
-  doc.text('TEKKO by GeoChifâ · Dakar, Sénégal', footerLogoX, footerY + 16, { width: 200 });
-  doc.text(`Document généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 0, footerY + 32, { align: 'center', width: doc.page.width });
+  doc.text('TEKKO by GeoChifÃ¢ Â· Dakar, SÃ©nÃ©gal', footerLogoX, footerY + 16, { width: 200 });
+  doc.text(`Document gÃ©nÃ©rÃ© le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 0, footerY + 32, { align: 'center', width: doc.page.width });
 
   doc.end();
 

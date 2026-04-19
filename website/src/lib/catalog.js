@@ -150,10 +150,9 @@ export const packCatalog = {
   business: {
     key: 'business',
     name: 'Business',
-    price: 60000,
-    discountBadge: '-20%',
+    price: 150000,
     quantity: 5,
-    caption: '5 cartes NFC — domaine partagé, tarif groupé.',
+    caption: '5 cartes NFC premium — domaine dédié, dorure, design haut de gamme.',
   },
 };
 
@@ -165,6 +164,19 @@ export const profileFields = [
   { key: 'email', label: 'Email', type: 'email' },
   { key: 'website', label: 'Website', type: 'text' },
   { key: 'location', label: 'Location', type: 'text' },
+];
+
+export const socialFields = [
+  { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+  { key: 'x', label: 'X (Twitter)', placeholder: 'https://x.com/...' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/...' },
+  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@...' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@...' },
+  { key: 'discord', label: 'Discord', placeholder: 'https://discord.gg/...' },
+  { key: 'github', label: 'GitHub', placeholder: 'https://github.com/...' },
+  { key: 'snapchat', label: 'Snapchat', placeholder: 'https://snapchat.com/add/...' },
+  { key: 'whatsapp', label: 'WhatsApp', placeholder: 'https://wa.me/...' },
 ];
 
 export const orderContactFields = [
@@ -185,6 +197,16 @@ export const defaultProfile = {
   website: 'https://tekko.sn/sokhna',
   location: 'Dakar, Sénégal',
   bio: '',
+  linkedin: '',
+  instagram: '',
+  x: '',
+  facebook: '',
+  tiktok: '',
+  youtube: '',
+  discord: '',
+  github: '',
+  snapchat: '',
+  whatsapp: '',
 };
 
 export const defaultOrderContact = {
@@ -206,6 +228,10 @@ export const defaultCustomization = {
   foil: 'No foil',
   includeQr: false,
   includeLogo: false,
+  logoPosition: 'bottom-right',
+  logoSize: 'medium',
+  qrPosition: 'center',
+  qrSize: 'medium',
   backsideMessage: 'Tap, scan, connect.',
   cardLabel: 'Tapal Signature',
   textColor: '',
@@ -352,8 +378,8 @@ export function buildOrderBrief({
     `Materiau : ${customization.material}`,
     `Finition : ${customization.finish}`,
     `Dorure : ${customization.foil}`,
-    `QR code verso : ${customization.includeQr ? 'Oui' : 'Non'}`,
-    `Logo recto : ${customization.includeLogo ? 'Oui' : 'Non'}`,
+    `QR code verso : ${customization.includeQr ? 'Oui' : 'Non'}${customization.includeQr ? ` (${customization.qrPosition}, ${customization.qrSize})` : ''}`,
+    `Logo recto : ${customization.includeLogo ? 'Oui' : 'Non'}${customization.includeLogo ? ` (${customization.logoPosition}, ${customization.logoSize})` : ''}`,
     `Message verso : ${customization.backsideMessage || sep}`,
     ``,
     `*Design digital*`,
@@ -387,3 +413,71 @@ export function buildOrderBrief({
 
   return lines.join('\n');
 }
+
+/** Pre-built card templates for quick-start */
+export const cardTemplates = [
+  {
+    key: 'ceo',
+    labelKey: 'builder.templates.ceo',
+    label: 'PDG / Dirigeant',
+    emoji: '👔',
+    profile: { fullName: 'Aminata Diallo', role: 'PDG', company: 'Diallo Group', email: 'aminata@diallogroup.com', phone: '+221 77 123 45 67' },
+    customization: { theme: 'executive', accent: '#d4a147', material: 'Brushed metal', finish: 'Soft matte', foil: 'Gold foil', cardLayout: 'classic', fontStyle: 'elegant' },
+  },
+  {
+    key: 'developer',
+    labelKey: 'builder.templates.developer',
+    label: 'Développeur',
+    emoji: '💻',
+    profile: { fullName: 'Mamadou Ndiaye', role: 'Full-Stack Developer', company: 'TechSN', email: 'mamadou@techsn.dev', website: 'techsn.dev' },
+    customization: { theme: 'pulse', accent: '#2bd1ff', material: 'Frosted black', finish: 'Gloss', foil: 'Silver foil', cardLayout: 'minimal', fontStyle: 'technique' },
+  },
+  {
+    key: 'designer',
+    labelKey: 'builder.templates.designer',
+    label: 'Designer',
+    emoji: '🎨',
+    profile: { fullName: 'Fatou Sow', role: 'Creative Director', company: 'Studio Teranga', email: 'fatou@studioteranga.com', website: 'studioteranga.com' },
+    customization: { theme: 'studio', accent: '#ff6b2c', material: 'Soft touch PVC', finish: 'Matte', foil: 'No foil', cardLayout: 'bold', fontStyle: 'moderne' },
+  },
+  {
+    key: 'doctor',
+    labelKey: 'builder.templates.doctor',
+    label: 'Médecin',
+    emoji: '⚕️',
+    profile: { fullName: 'Dr. Ousmane Ba', role: 'Médecin Généraliste', company: 'Clinique Mermoz', email: 'dr.ba@clinikmermoz.sn', phone: '+221 33 860 00 00' },
+    customization: { theme: 'studio', accent: '#1a9b45', material: 'Pearl white', finish: 'Satin', foil: 'No foil', cardLayout: 'elegant', fontStyle: 'moderne' },
+  },
+  {
+    key: 'lawyer',
+    labelKey: 'builder.templates.lawyer',
+    label: 'Avocat',
+    emoji: '⚖️',
+    profile: { fullName: 'Maître Ibra Fall', role: 'Avocat', company: 'Cabinet Fall & Associés', email: 'ibra@cabinetfall.sn', phone: '+221 77 890 12 34' },
+    customization: { theme: 'executive', accent: '#8b7355', material: 'Brushed metal', finish: 'Soft matte', foil: 'Copper foil', cardLayout: 'classic', fontStyle: 'elegant' },
+  },
+  {
+    key: 'freelancer',
+    labelKey: 'builder.templates.freelancer',
+    label: 'Freelance',
+    emoji: '🚀',
+    profile: { fullName: 'Awa Mbaye', role: 'Consultant Marketing Digital', company: '', email: 'awa.mbaye@gmail.com', website: 'awambaye.com' },
+    customization: { theme: 'studio', accent: '#ff6b2c', material: 'Soft touch PVC', finish: 'Matte', foil: 'No foil', cardLayout: 'gradient', fontStyle: 'arrondi' },
+  },
+  {
+    key: 'artist',
+    labelKey: 'builder.templates.artist',
+    label: 'Artiste',
+    emoji: '🎵',
+    profile: { fullName: 'Youssou Dieng', role: 'Musicien / Producteur', company: '', email: 'youssou@music.sn', bio: 'Artiste sénégalais — Musique mandingue et urbaine.' },
+    customization: { theme: 'teranga', accent: '#8e6f48', material: 'Pearl white', finish: 'Satin', foil: 'Copper foil', cardLayout: 'banner', fontStyle: 'arrondi' },
+  },
+  {
+    key: 'student',
+    labelKey: 'builder.templates.student',
+    label: 'Étudiant',
+    emoji: '🎓',
+    profile: { fullName: 'Cheikh Thiam', role: 'Étudiant en Informatique', company: 'ESP Dakar', email: 'cheikh.thiam@esp.sn' },
+    customization: { theme: 'pulse', accent: '#2bd1ff', material: 'Soft touch PVC', finish: 'Matte', foil: 'No foil', cardLayout: 'minimal', fontStyle: 'moderne' },
+  },
+];

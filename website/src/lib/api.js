@@ -6,8 +6,14 @@ async function request(endpoint, options = {}) {
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const err = new Error(payload.error || payload || 'Request failed.');
+    const msg = typeof payload === 'object' && payload !== null && payload.error
+      ? payload.error
+      : (typeof payload === 'string' ? payload : 'Request failed.');
+    const err = new Error(msg);
     err.status = response.status;
+    if (typeof payload === 'object' && payload !== null && payload.error) {
+      err.code = payload.error;
+    }
     throw err;
   }
 
@@ -21,11 +27,19 @@ export function submitOrder(formData) {
   });
 }
 
-export function startCheckout(orderId, totalPrice) {
+export function submitCleEnMainOrder(data) {
+  return request('/cle-en-main', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export function startCheckout(orderId) {
   return request(`/orders/${orderId}/checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ totalPrice }),
+    body: '{}',
   });
 }
 
@@ -48,8 +62,29 @@ export function updateAdminOrder(orderId, updates, token) {
   });
 }
 
+export function updateAdminCard(orderId, cardData, token) {
+  return request(`/admin/orders/${orderId}/card`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-token': token,
+    },
+    body: JSON.stringify(cardData),
+  });
+}
+
 export function fetchPublicCard(slug) {
   return request(`/cards/${slug}`);
+}
+
+export function fetchOrderPortal(orderId, token) {
+  const q = new URLSearchParams({ token: String(token) });
+  return request(`/orders/${encodeURIComponent(orderId)}/portal?${q}`);
+}
+
+export function fetchCardAnalytics(orderId, token, days = 30) {
+  const q = new URLSearchParams({ token: String(token), days: String(days) });
+  return request(`/orders/${encodeURIComponent(orderId)}/card-analytics?${q}`);
 }
 
 export function fetchInventory() {
@@ -165,5 +200,39 @@ export function fetchAdminAnalytics(period, token) {
 export function fetchAdminAnalyticsVisits(token, limit) {
   return request(`/admin/analytics/visits?limit=${limit ?? 100}`, {
     headers: { 'x-admin-token': token },
+  });
+}
+
+// ── Voice assistant ──────────────────────────────────────────────
+export function voiceExtract(data) {
+  return request('/voice/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export function voiceDesignSuggest(data) {
+  return request('/voice/design-suggest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export function voiceValidate(orderId) {
+  return request(`/voice/validate/${orderId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function voiceTranscribeWolof(audioBlob, lang = 'wo') {
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'recording.webm');
+  formData.append('lang', lang);
+  return request('/voice/transcribe-wolof', {
+    method: 'POST',
+    body: formData,
   });
 }

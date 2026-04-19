@@ -24,6 +24,10 @@ import { sendOrderConfirmationEmail } from './email.js';
 import { generateReceiptPdf } from './pdf-receipt.js';
 import { generateInvoicePdf } from './pdf-invoice.js';
 import { buildVisitPayload } from './analytics.js';
+import { extractVoiceData, isGroqConfigured } from './services/voice-llm.js';
+import { suggestTheme } from './services/voice-theme.js';
+import multer from 'multer';
+import Groq from 'groq-sdk';
 
 dotenv.config();
 
@@ -37,7 +41,15 @@ const uploadDir = path.resolve(rootDir, process.env.UPLOAD_DIR ?? './uploads');
 const distDir = path.join(rootDir, 'dist');
 const indexFile = path.join(distDir, 'index.html');
 const publicCardBaseUrl = (process.env.PUBLIC_CARD_BASE_URL ?? 'https://tapal.geochifa.com/c').replace(/\/$/, '');
-const adminToken = process.env.ADMIN_DASHBOARD_TOKEN ?? 'tekko-admin-local';
+
+const adminTokenFromEnv = process.env.ADMIN_DASHBOARD_TOKEN?.trim();
+const isProduction = process.env.NODE_ENV === 'production';
+const adminToken = adminTokenFromEnv
+  || (isProduction ? '' : 'tekko-admin-local');
+if (isProduction && !adminToken) {
+  console.error('FATAL: Set ADMIN_DASHBOARD_TOKEN when NODE_ENV=production.');
+  process.exit(1);
+}
 
 const packageCatalog = {
   starter: {
@@ -57,7 +69,7 @@ const packageCatalog = {
   business: {
     key: 'business',
     name: 'Business',
-    price: 60000,
+    price: 150000,
     quantity: 5,
     leadTime: '5 days',
   },
@@ -85,6 +97,30 @@ function safeEqual(a, b) {
   const bufB = Buffer.from(b);
   if (bufA.length !== bufB.length) return false;
   return timingSafeEqual(bufA, bufB);
+}
+
+/** Hide portal token from admin API responses (not from customer checkout/create). */
+function orderWithoutPortalToken(order) {
+  if (!order) return null;
+  const { portalToken: _omit, ...rest } = order;
+  return rest;
+}
+
+function escapeHtmlAttr(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function buildPaymentSuccessUrl(publicUrl, order) {
+  const base = (publicUrl || 'https://tapal.geochifa.com').replace(/\/$/, '');
+  let url = `${base}/payment/success?orderId=${encodeURIComponent(order.orderId)}`;
+  if (order.portalToken) {
+    url += `&portalToken=${encodeURIComponent(order.portalToken)}`;
+  }
+  return url;
 }
 
 function requireAdmin(request, response, next) {
@@ -171,6 +207,13 @@ const trackLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const voiceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes vocales. Réessayez dans une minute.' },
+});
 app.use('/api/', apiLimiter);
 
 app.use(express.json({
@@ -194,6 +237,7 @@ app.get('/api/health', (_request, response) => {
     ok: true,
     paymentConfigured: isWaveConfigured() || isCinetPayConfigured(),
     adminConfigured: Boolean(process.env.ADMIN_DASHBOARD_TOKEN),
+    voiceConfigured: isGroqConfigured(),
   });
 });
 
@@ -261,7 +305,15 @@ app.post(
     { name: 'customRefFile', maxCount: 1 },
   ]),
   asyncRoute(async (request, response) => {
-    const payload = JSON.parse(request.body.payload ?? '{}');
+    let payload;
+    try {
+      payload = JSON.parse(request.body.payload ?? '{}');
+    } catch {
+      return response.status(400).json({ error: 'Invalid order payload JSON.' });
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return response.status(400).json({ error: 'Order payload must be a JSON object.' });
+    }
     const packageSelection = resolvePackage(payload.packageSelection?.key ?? payload.packageKey);
     const orderId = randomUUID();
     const firstName = createSlug((payload.profile?.fullName ?? '').split(' ')[0]) || 'card';
@@ -271,6 +323,7 @@ app.post(
     const finalCardUrl = buildPublicCardUrl(uniqueSlug);
     const assetsPayload = payload.assets ?? {};
 
+    try {
     const savedAvatar = await persistAsset({
       orderId,
       assetKey: 'avatar',
@@ -334,6 +387,7 @@ app.post(
       profile: {
         ...(payload.profile ?? {}),
         slug: uniqueSlug,
+        ...(payload.businessCards ? { businessCards: payload.businessCards } : {}),
       },
       customization: {
         ...(payload.customization ?? {}),
@@ -359,11 +413,15 @@ app.post(
       deliveryNotes: payload.orderContact?.deliveryNotes ?? '',
       couponCode: payload.couponCode ?? null,
       discountAmount: payload.discountAmount ?? 0,
+      portalToken: randomBytes(32).toString('hex'),
       createdAt: now,
       updatedAt: now,
     });
 
     response.status(201).json({ order });
+    } finally {
+      cleanupTempFiles(request.files);
+    }
   }),
 );
 
@@ -389,7 +447,7 @@ app.post(
     // Apply coupon discount server-side
     if (order.couponCode) {
       const coupon = database.getCoupon(order.couponCode);
-      if (coupon && coupon.active && (coupon.maxUses === 0 || coupon.usedCount <= coupon.maxUses)) {
+      if (coupon && coupon.active && (coupon.maxUses === 0 || coupon.usedCount < coupon.maxUses)) {
         if (coupon.discountType === 'percent') {
           totalPrice -= Math.round(totalPrice * coupon.discountValue / 100);
         } else {
@@ -407,7 +465,7 @@ app.post(
     // Try Wave first
     if (isWaveConfigured()) {
       const publicUrl = process.env.SERVER_PUBLIC_URL || 'https://tapal.geochifa.com';
-      const overrideSuccessUrl = `${publicUrl}/payment/success?orderId=${order.orderId}`;
+      const overrideSuccessUrl = buildPaymentSuccessUrl(publicUrl, order);
       const wave = await initializeWaveCheckout({ order, totalPrice, overrideSuccessUrl });
       if (wave.configured && !wave.error) {
         const updatedOrder = database.updatePayment({
@@ -454,6 +512,74 @@ app.post(
       transactionId: checkout.transactionId,
       order: updatedOrder,
     });
+  }),
+);
+
+// ── CLÉ EN MAIN — WhatsApp order (no upfront payment) ──────────────
+app.post(
+  '/api/cle-en-main',
+  orderLimiter,
+  asyncRoute(async (request, response) => {
+    const body = request.body ?? {};
+    const name = String(body.name ?? '').trim();
+    const phone = String(body.phone ?? '').trim();
+    if (!name || !phone) {
+      return response.status(400).json({ error: 'Nom et WhatsApp requis.' });
+    }
+
+    const orderId = randomUUID();
+    const baseSlug = createSlug(name) || `cle-${Date.now()}`;
+    const uniqueSlug = database.ensureUniqueSlug(baseSlug);
+    const finalCardUrl = buildPublicCardUrl(uniqueSlug);
+
+    const packKey = String(body.packKey ?? 'pro');
+    const packInfo = resolvePackage(packKey);
+    const qty = Math.max(1, Math.min(999, parseInt(body.quantity ?? 1, 10) || 1));
+
+    // Per-card price = pack price / pack included quantity (e.g. Business: 60000/5 = 12000/card)
+    const perCardPrice = Math.round(packInfo.price / (packInfo.quantity ?? 1));
+
+    // Volume pricing (same tiers as frontend)
+    let totalPrice = perCardPrice * qty;
+    if (qty >= 10) totalPrice = Math.round(totalPrice * 0.70);
+    else if (qty >= 5) totalPrice = Math.round(totalPrice * 0.80);
+    else if (qty >= 3) totalPrice = Math.round(totalPrice * 0.90);
+
+    const now = new Date().toISOString();
+    const order = database.createOrder({
+      orderId,
+      slug: uniqueSlug,
+      customerName: name,
+      customerEmail: '',
+      customerPhone: phone,
+      packKey,
+      packPrice: totalPrice,
+      currency: 'XOF',
+      profile: { fullName: name, phone },
+      customization: {},
+      orderContact: { deliveryCity: String(body.city ?? '').trim() },
+      assets: {},
+      packageSelection: packInfo,
+      finalCardUrl,
+      orderStatus: 'submitted',
+      paymentProvider: 'whatsapp',
+      paymentStatus: 'whatsapp_pending',
+      paymentReference: null,
+      paymentUrl: null,
+      paymentPayload: null,
+      adminNotes: '',
+      deliveryNotes: '',
+      couponCode: null,
+      discountAmount: 0,
+      portalToken: null,
+      source: 'cle_en_main',
+      description: String(body.description ?? '').trim(),
+      quantity: qty,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    response.status(201).json({ orderId: order.orderId });
   }),
 );
 
@@ -544,6 +670,53 @@ app.post(
   }),
 );
 
+// ── ORDER PORTAL (signed link via portal_token on the order) ───────
+app.get(
+  '/api/orders/:orderId/portal',
+  asyncRoute(async (request, response) => {
+    const token = typeof request.query.token === 'string' ? request.query.token : '';
+    const order = database.getOrderById(request.params.orderId);
+    if (!order) {
+      return response.status(404).json({ error: 'Order not found.' });
+    }
+    if (!order.portalToken || !safeEqual(order.portalToken, token)) {
+      return response.status(403).json({ error: "Lien d'acces invalide ou expire." });
+    }
+    response.json({
+      orderId: order.orderId,
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+      finalCardUrl: order.finalCardUrl,
+      paymentUrl: order.paymentUrl,
+      slug: order.slug,
+      customerName: order.customerName,
+      packName: order.packageSelection?.name ?? order.packKey,
+    });
+  }),
+);
+
+app.get(
+  '/api/orders/:orderId/card-analytics',
+  asyncRoute(async (request, response) => {
+    const token = typeof request.query.token === 'string' ? request.query.token : '';
+    const daysRaw = Number(request.query.days ?? 30);
+    const days = Math.min(Math.max(Number.isFinite(daysRaw) ? daysRaw : 30, 1), 366);
+    const order = database.getOrderById(request.params.orderId);
+    if (!order) {
+      return response.status(404).json({ error: 'Order not found.' });
+    }
+    if (!order.portalToken || !safeEqual(order.portalToken, token)) {
+      return response.status(403).json({ error: "Lien d'acces invalide ou expire." });
+    }
+    if (order.paymentStatus !== 'paid') {
+      return response.status(403).json({ error: 'Statistiques disponibles apres confirmation du paiement.' });
+    }
+    const since = new Date(Date.now() - days * 864e5).toISOString();
+    const stats = database.getVisitStatsForSlug({ slug: order.slug, since });
+    response.json({ periodDays: days, slug: order.slug, ...stats });
+  }),
+);
+
 app.post(
   '/api/payments/cinetpay/webhook',  asyncRoute(async (request, response) => {
     console.log('[CinetPay Webhook] Received:', JSON.stringify(request.body).slice(0, 500));
@@ -606,8 +779,9 @@ app.post(
     const { clientReference, checkoutId, paymentStatus, payload } = normalizeWaveWebhookPayload(request.body);
 
     if (!clientReference && !checkoutId) {
-      response.status(400).json({ error: 'Missing reference.' });
-      return;
+      // Wave health-check ping — signature already verified, just acknowledge
+      console.log('[Wave Webhook] Health-check ping, no reference — returning 200.');
+      return response.json({ ok: true });
     }
 
     // Update by client_reference (orderId) or by checkoutId (paymentReference)
@@ -647,7 +821,7 @@ app.post(
 );
 
 app.get('/api/admin/orders', requireAdmin, (_request, response) => {
-  response.json({ orders: database.listOrders() });
+  response.json({ orders: database.listOrders().map(orderWithoutPortalToken) });
 });
 
 app.get('/api/inventory', (_request, response) => {
@@ -684,7 +858,30 @@ app.patch(
       deliveryNotes: request.body.deliveryNotes ?? existingOrder.deliveryNotes,
     });
 
-    response.json({ order: updatedOrder });
+    response.json({ order: orderWithoutPortalToken(updatedOrder) });
+  }),
+);
+
+// ── ADMIN: UPDATE CARD PROFILE & CUSTOMIZATION ──────────────────────
+app.patch(
+  '/api/admin/orders/:orderId/card',
+  requireAdmin,
+  asyncRoute(async (request, response) => {
+    const existingOrder = database.getOrderById(request.params.orderId);
+    if (!existingOrder) {
+      return response.status(404).json({ error: 'Order not found.' });
+    }
+
+    const profile = { ...existingOrder.profile, ...request.body.profile };
+    const customization = { ...existingOrder.customization, ...request.body.customization };
+
+    const updatedOrder = database.updateOrderCard({
+      orderId: existingOrder.orderId,
+      profile,
+      customization,
+    });
+
+    response.json({ order: orderWithoutPortalToken(updatedOrder) });
   }),
 );
 
@@ -703,12 +900,15 @@ app.post(
     // Remove coupon if code is empty
     if (!code) {
       const updatedOrder = database.updateOrderCoupon({ orderId: order.orderId, couponCode: null, discountAmount: 0 });
-      return response.json({ order: updatedOrder, discountAmount: 0 });
+      return response.json({ order: orderWithoutPortalToken(updatedOrder), discountAmount: 0 });
     }
 
     const coupon = database.getCoupon(code);
     if (!coupon || !coupon.active) {
       return response.status(400).json({ error: 'Code coupon invalide ou inactif.' });
+    }
+    if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
+      return response.status(400).json({ error: 'Ce coupon a atteint son nombre maximum d\'utilisations.' });
     }
 
     // Compute base price
@@ -720,15 +920,17 @@ app.post(
       + (materialAdds[customization.material] ?? 0)
       + (foilAdds[customization.foil] ?? 0);
 
-    let discountAmount = 0;
-    if (coupon.discountType === 'percent') {
-      discountAmount = Math.round(basePrice * coupon.discountValue / 100);
-    } else {
-      discountAmount = Math.min(coupon.discountValue, basePrice);
+    // Atomic coupon application (prevents race conditions)
+    try {
+      const { discountAmount, coupon: appliedCoupon } = database.applyCouponAtomically({
+        orderId: order.orderId, code, basePrice,
+      });
+      const updatedOrder = database.getOrderById(order.orderId);
+      console.log(`[Admin] Applied coupon ${code} to order ${order.orderId.slice(0, 8)}`);
+      response.json({ order: orderWithoutPortalToken(updatedOrder), discountAmount, coupon: appliedCoupon });
+    } catch (err) {
+      return response.status(400).json({ error: err.message });
     }
-
-    const updatedOrder = database.updateOrderCoupon({ orderId: order.orderId, couponCode: code, discountAmount });
-    response.json({ order: updatedOrder, discountAmount, coupon });
   }),
 );
 
@@ -810,7 +1012,7 @@ app.post(
     if (totalPrice < 100) totalPrice = packInfo.price;
 
     const publicUrl = process.env.SERVER_PUBLIC_URL || 'https://tapal.geochifa.com';
-    const overrideSuccessUrl = `${publicUrl}/payment/success?orderId=${order.orderId}`;
+    const overrideSuccessUrl = buildPaymentSuccessUrl(publicUrl, order);
     const wave = await initializeWaveCheckout({ order, totalPrice, overrideSuccessUrl });
 
     if (!wave.configured || wave.error) {
@@ -825,7 +1027,7 @@ app.post(
       paymentPayload: wave.raw,
     });
 
-    response.json({ paymentUrl: wave.paymentUrl, order: updatedOrder });
+    response.json({ paymentUrl: wave.paymentUrl, order: orderWithoutPortalToken(updatedOrder) });
   }),
 );
 
@@ -894,7 +1096,7 @@ async function checkDomainAvailability(domain) {
       if (rdapRes.status === 404) return true;
       if (rdapRes.ok) return false;
     } catch { /* both failed */ }
-    return null; // unknown
+    return false; // assume unavailable (conservative)
   }
 }
 
@@ -961,10 +1163,16 @@ app.delete('/api/admin/coupons/:code', requireAdmin, (request, response) => {
 });
 
 // ── CEREMONIES ──────────────────────────────────────────────
+const VALID_EVENT_TYPES = ['mariage', 'gala', 'seminaire', 'formation', 'corporate', 'festival', 'autre'];
+
 app.post('/api/ceremonies', (request, response) => {
   const body = request.body;
   if (!body?.contactName?.trim() || !body?.contactPhone?.trim() || !body?.eventType?.trim()) {
     return response.status(400).json({ error: 'Champs obligatoires manquants (nom, telephone, type).' });
+  }
+  const eventType = body.eventType.trim();
+  if (!VALID_EVENT_TYPES.includes(eventType)) {
+    return response.status(400).json({ error: 'Type d\'événement invalide.' });
   }
   const id = randomUUID();
   const ceremony = database.createCeremony({
@@ -1114,6 +1322,204 @@ app.get('/api/admin/analytics/visits', requireAdmin, (request, response) => {
   response.json({ visits: database.getRecentVisits(limit) });
 });
 
+// ── VOICE ASSISTANT ROUTES ────────────────────────────────────────
+app.post(
+  '/api/voice/extract',
+  voiceLimiter,
+  asyncRoute(async (request, response) => {
+    const { transcript, collectedData, stepIndex, language, sessionId } = request.body;
+
+    if (!transcript || typeof transcript !== 'string') {
+      return response.status(400).json({ error: 'Missing transcript.' });
+    }
+
+    if (!isGroqConfigured()) {
+      return response.status(503).json({ error: 'Voice service not configured.' });
+    }
+
+    // Log turn if session exists
+    if (sessionId) {
+      database.appendVoiceTurn({ sessionId, role: 'user', content: transcript });
+    }
+
+    try {
+      const result = await extractVoiceData({
+        transcript,
+        collectedData: collectedData ?? {},
+        stepIndex: stepIndex ?? 0,
+        language: language ?? 'fr',
+      });
+
+      // Log assistant turn
+      if (sessionId) {
+        database.appendVoiceTurn({ sessionId, role: 'assistant', content: result.nextPrompt });
+      }
+
+      response.json(result);
+    } catch (err) {
+      console.error('[Voice/extract]', err.message);
+      const isTimeout = err.message === 'Groq API timeout';
+      response.status(isTimeout ? 504 : 500).json({
+        error: isTimeout
+          ? "L'assistant Tapal ne répond pas. Réessai automatique..."
+          : 'Erreur de reconnaissance vocale. Veuillez réessayer.',
+        retry: true,
+      });
+    }
+  }),
+);
+
+app.post(
+  '/api/voice/design-suggest',
+  voiceLimiter,
+  asyncRoute(async (request, response) => {
+    const { orderId, profileData } = request.body;
+
+    if (!orderId) {
+      return response.status(400).json({ error: 'Missing orderId.' });
+    }
+
+    const order = database.getOrderById(orderId);
+    if (!order) {
+      return response.status(404).json({ error: 'Order not found.' });
+    }
+
+    const suggestion = suggestTheme({
+      role: profileData?.role ?? order.profile?.role ?? '',
+      company: profileData?.company ?? order.profile?.company ?? '',
+    });
+
+    // Apply theme to order customization
+    const currentCustomization = order.customization ?? {};
+    const updatedCustomization = {
+      ...currentCustomization,
+      theme: suggestion.theme,
+      accent: suggestion.accent,
+      material: suggestion.material,
+      finish: suggestion.finish,
+      foil: suggestion.foil,
+    };
+
+    database.updateOrderCard({
+      orderId,
+      profile: order.profile,
+      customization: updatedCustomization,
+    });
+
+    // Mark this order as voice-sourced
+    database.updateOrderSource({
+      orderId,
+      source: 'voice',
+      detectedLanguage: request.body.language ?? 'fr',
+    });
+
+    response.json({
+      themeName: suggestion.label,
+      slug: order.slug,
+      accent: suggestion.accent,
+      theme: suggestion.theme,
+      material: suggestion.material,
+      finish: suggestion.finish,
+      foil: suggestion.foil,
+    });
+  }),
+);
+
+app.post(
+  '/api/voice/validate/:orderId',
+  voiceLimiter,
+  asyncRoute(async (request, response) => {
+    const order = database.getOrderById(request.params.orderId);
+
+    if (!order) {
+      return response.status(404).json({ error: 'Order not found.' });
+    }
+
+    database.updateAdminOrder({
+      orderId: order.orderId,
+      orderStatus: 'submitted',
+      paymentStatus: 'pending',
+    });
+
+    response.json({ ok: true, slug: order.slug, orderId: order.orderId });
+  }),
+);
+
+// ─── Local-language transcription via Groq Whisper ──────────────
+const audioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+app.post(
+  '/api/voice/transcribe-wolof',
+  voiceLimiter,
+  audioUpload.single('audio'),
+  asyncRoute(async (request, response) => {
+    if (!process.env.GROQ_API_KEY) {
+      return response.status(503).json({ error: 'Transcription API not configured.' });
+    }
+    if (!request.file) {
+      return response.status(400).json({ error: 'No audio file provided.' });
+    }
+
+    const lang = request.body?.lang || 'wo';
+
+    try {
+      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+      const file = new File([request.file.buffer], 'recording.webm', { type: 'audio/webm' });
+      // Whisper doesn't support Wolof/Pulaar codes — use auto-detect
+      // It still transcribes the spoken content as best it can
+      const transcription = await groq.audio.transcriptions.create({
+        file,
+        model: 'whisper-large-v3',
+        prompt: lang === 'wo'
+          ? 'Wolof spoken in Senegal. Names like Mamadou, Diallo, Ndiaye, Sow.'
+          : 'Pulaar Fula spoken in Senegal. Names like Amadou, Bah, Barry, Diallo.',
+      });
+
+      const text = transcription.text || '';
+      console.log(`[Voice/${lang}] Whisper transcript:`, text);
+      response.json({ text: text.trim() });
+    } catch (err) {
+      console.error(`[Voice/${lang}] Whisper error:`, err.message);
+      response.status(500).json({ error: 'Transcription failed.' });
+    }
+  }),
+);
+
+// ── Social preview (Open Graph) for WhatsApp / Telegram ─────────────
+app.get('/share/:slug', (request, response) => {
+  const order = database.getOrderBySlug(request.params.slug);
+  if (!order || order.paymentStatus !== 'paid') {
+    response.status(404).type('html').send('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Tapal</title></head><body><p>Carte introuvable.</p></body></html>');
+    return;
+  }
+  const profile = order.profile || {};
+  const title = escapeHtmlAttr(profile.fullName || 'Carte Tapal');
+  const desc = escapeHtmlAttr(profile.role || profile.company || 'Carte de visite numerique Tapal.');
+  const host = request.get('host') || 'localhost';
+  const proto = (request.headers['x-forwarded-proto'] || request.protocol || 'https').split(',')[0].trim();
+  const cardPath = `/c/${encodeURIComponent(order.slug)}`;
+  const absUrl = `${proto}://${host}${cardPath}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${title}</title>
+  <meta name="description" content="${desc}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${desc}" />
+  <meta property="og:url" content="${escapeHtmlAttr(absUrl)}" />
+  <meta http-equiv="refresh" content="0;url=${escapeHtmlAttr(absUrl)}" />
+  <link rel="canonical" href="${escapeHtmlAttr(absUrl)}" />
+</head>
+<body>
+  <p style="font-family:system-ui,sans-serif;padding:1.5rem"><a href="${escapeHtmlAttr(absUrl)}">Ouvrir la carte</a></p>
+</body>
+</html>`;
+  response.type('html').send(html);
+});
+
 if (fs.existsSync(distDir)) {
   // Assets (hashed filenames) get long cache; index.html is served by the catch-all below
   app.use(express.static(distDir, { index: false, maxAge: '7d' }));
@@ -1174,7 +1580,7 @@ function cleanupOrphanedOrders() {
       database.deleteOrder(order.orderId);
     }
     if (expired.length > 0) {
-      console.log(`[Cleanup] Purged ${expired.length} unpaid order(s) older than 30 min.`);
+      console.log(`[Cleanup] Purged ${expired.length} unpaid order(s) older than ${ORPHAN_MAX_AGE_MS / 60000} min without checkout.`);
     }
   } catch (err) {
     console.error('[Cleanup] Error:', err.message);
