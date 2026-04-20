@@ -504,6 +504,20 @@
       padding: .18rem .6rem; border-radius: 20px;
       white-space: nowrap;
     }
+    .price-save-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: .45rem 0 .1rem;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      background: rgba(29,193,236,.12);
+      color: #1187a9;
+      font-size: .58rem;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
     .price-tier {
       font-size: .6rem; font-weight: 700;
       letter-spacing: .1em; text-transform: uppercase;
@@ -621,11 +635,293 @@
       content: '+'; font-size: 1.2rem; font-weight: 400;
       color: var(--muted); transition: transform .2s;
     }
-    .faq-item[open] summary::after { content: 'âˆ’'; }
+    .faq-item[open] summary::after { content: '-'; }
     .faq-item p {
       font-size: .82rem; color: var(--text2);
       line-height: 1.7; padding: 0 1.2rem 1rem;
     }
+
+
+    /* ---- TERRAIN SECTION ---- */
+    .terrain-zone {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .terrain-hero {
+      background: #1a1a1a;
+      border-radius: var(--radius);
+      padding: 3.5rem 3rem;
+      margin-bottom: 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .terrain-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(184,148,79,.06) 39px, rgba(184,148,79,.06) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(184,148,79,.06) 39px, rgba(184,148,79,.06) 40px);
+      pointer-events: none;
+    }
+    .terrain-hero::after {
+      content: '';
+      position: absolute; top: 50%; left: 20%;
+      width: 400px; height: 400px;
+      background: radial-gradient(ellipse, rgba(184,148,79,.08) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .terrain-hero-content { position: relative; z-index: 1; }
+    .terrain-hero .section-tag { color: var(--gold-light); }
+    .terrain-hero .section-title { color: #fff; font-size: 2.2rem; margin-bottom: .8rem; }
+    .terrain-hero .section-sub { color: rgba(255,255,255,.5); max-width: 520px; }
+    .terrain-hero-grid {
+      display: flex; gap: 2rem; margin-top: 2rem;
+    }
+    .terrain-stat { display: flex; flex-direction: column; gap: .15rem; }
+    .terrain-stat strong {
+      font-size: 1.3rem; font-weight: 800; color: var(--gold-light);
+      letter-spacing: -.03em;
+    }
+    .terrain-stat span {
+      font-size: .65rem; color: rgba(255,255,255,.4); font-weight: 500;
+    }
+
+    .actors {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem; margin-bottom: 3.5rem;
+    }
+    .actor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.6rem 1.4rem;
+      position: relative; overflow: hidden;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .actor-card:hover {
+      box-shadow: 0 8px 30px rgba(0,0,0,.04);
+      border-color: var(--border2);
+    }
+    .actor-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .actor-card.actor-admin::before { background: var(--gold); }
+    .actor-card.actor-agent::before { background: #c45e2a; }
+    .actor-card.actor-client::before { background: #1a9d8f; }
+    .actor-role-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .58rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: .22rem .6rem; border-radius: 6px;
+      margin-bottom: .8rem;
+    }
+    .actor-admin .actor-role-badge {
+      background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border);
+    }
+    .actor-agent .actor-role-badge {
+      background: rgba(196,94,42,.06); color: #c45e2a; border: 1px solid rgba(196,94,42,.16);
+    }
+    .actor-client .actor-role-badge {
+      background: rgba(26,157,143,.06); color: #1a9d8f; border: 1px solid rgba(26,157,143,.16);
+    }
+    .actor-card h3 {
+      font-size: .92rem; font-weight: 650;
+      letter-spacing: -.02em; margin-bottom: .35rem;
+    }
+    .actor-card > p {
+      font-size: .78rem; color: var(--text2); line-height: 1.65;
+      margin-bottom: .8rem;
+    }
+    .actor-perms {
+      list-style: none; display: flex; flex-direction: column; gap: .25rem;
+    }
+    .actor-perms li {
+      font-size: .72rem; color: var(--text2);
+      display: flex; align-items: center; gap: .35rem;
+    }
+    .actor-perms li .perm-yes {
+      width: 14px; height: 14px; border-radius: 4px;
+      background: rgba(26,155,69,.08);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .actor-perms li .perm-yes svg { width: 8px; height: 8px; stroke: #1a9b45; }
+    .actor-perms li .perm-no {
+      width: 14px; height: 14px; border-radius: 4px;
+      background: rgba(204,32,32,.06);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .actor-perms li .perm-no svg { width: 8px; height: 8px; stroke: #cc2020; }
+
+    .usecases {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 1rem; margin-bottom: 3.5rem;
+    }
+    .usecase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.6rem 1.4rem;
+      position: relative;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .usecase:hover {
+      box-shadow: 0 6px 24px rgba(0,0,0,.03);
+      border-color: var(--border2);
+    }
+    .usecase-num {
+      position: absolute; top: .8rem; right: 1rem;
+      font-size: 2.5rem; font-weight: 900;
+      color: rgba(0,0,0,.03); letter-spacing: -.06em;
+      line-height: 1; pointer-events: none;
+    }
+    .usecase-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--gold-bg); border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--gold);
+      margin-bottom: .8rem;
+    }
+    .usecase h3 {
+      font-size: .88rem; font-weight: 650;
+      letter-spacing: -.02em; margin-bottom: .3rem;
+    }
+    .usecase p {
+      font-size: .78rem; color: var(--text2); line-height: 1.65;
+    }
+
+    .portal-preview {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 2rem; align-items: center;
+    }
+    .portal-modules {
+      display: flex; flex-direction: column; gap: .6rem;
+    }
+    .portal-module {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .8rem 1rem;
+      display: flex; align-items: center; gap: .7rem;
+      transition: border-color .2s;
+    }
+    .portal-module:hover { border-color: var(--border2); }
+    .portal-module-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--gold-bg); border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--gold);
+    }
+    .portal-module h4 {
+      font-size: .78rem; font-weight: 600; margin-bottom: .1rem;
+    }
+    .portal-module p {
+      font-size: .68rem; color: var(--text2); line-height: 1.5;
+    }
+    .portal-mockup {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 1.2rem;
+      position: relative; overflow: hidden;
+    }
+    .portal-mockup::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 28px;
+      background: rgba(255,255,255,.05);
+      border-radius: 12px 12px 0 0;
+    }
+    .portal-topbar {
+      display: flex; align-items: center; gap: .4rem;
+      margin-bottom: .8rem;
+    }
+    .portal-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .portal-dot.r { background: #ff5f57; }
+    .portal-dot.y { background: #febc2e; }
+    .portal-dot.g { background: #28c840; }
+    .portal-kpis {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+      margin-bottom: .8rem;
+    }
+    .portal-kpi {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 8px;
+      padding: .5rem .6rem; text-align: center;
+    }
+    .portal-kpi strong {
+      display: block;
+      font-size: .9rem; font-weight: 800; color: var(--gold-light);
+      letter-spacing: -.02em;
+    }
+    .portal-kpi span {
+      font-size: .52rem; color: rgba(255,255,255,.35); font-weight: 500;
+    }
+    .portal-map {
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 8px;
+      height: 100px;
+      position: relative; overflow: hidden;
+    }
+    .portal-map::after {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,.03) 19px, rgba(255,255,255,.03) 20px),
+        repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,.03) 19px, rgba(255,255,255,.03) 20px);
+    }
+    .portal-map-pins { position: absolute; inset: 0; z-index: 1; }
+    .portal-pin {
+      position: absolute;
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .portal-pin::after {
+      content: '';
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid;
+      opacity: .3;
+      animation: pin-pulse 2s ease-in-out infinite;
+    }
+    @keyframes pin-pulse {
+      0%, 100% { transform: scale(1); opacity: .3; }
+      50% { transform: scale(1.6); opacity: 0; }
+    }
+    .portal-pin.pin-green { background: #1a9b45; }
+    .portal-pin.pin-green::after { border-color: #1a9b45; }
+    .portal-pin.pin-gold { background: var(--gold); }
+    .portal-pin.pin-gold::after { border-color: var(--gold); animation-delay: .5s; }
+    .portal-pin.pin-orange { background: #c45e2a; }
+    .portal-pin.pin-orange::after { border-color: #c45e2a; animation-delay: 1s; }
+    .portal-readonly-badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      font-size: .5rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: rgba(255,255,255,.3);
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      padding: .15rem .5rem; border-radius: 4px;
+      margin-top: .6rem;
+    }
+    .portal-readonly-badge svg { width: 8px; height: 8px; stroke: rgba(255,255,255,.3); }
+    .terrain-cta { text-align: center; margin-top: 2.5rem; }
+    .terrain-cta .btn-dark { background: var(--gold); color: #fff; }
+
+    /* Bridge */
+    .bridge-section { border-top: 1px solid #e8e5df; padding-top: 4rem !important; margin-top: 1rem; }
+
+    /* CTA outline variant */
+    .cta-btn[style*="transparent"]:hover { background: var(--gold) !important; color: #fff !important; }
 
     /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ RESPONSIVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     @media (max-width: 920px) {
@@ -636,6 +932,12 @@
       .features { grid-template-columns: 1fr; }
       .pricing { grid-template-columns: repeat(2, 1fr); }
       .trust-bar { gap: 1.8rem; }
+      .actors { grid-template-columns: 1fr; }
+      .usecases { grid-template-columns: 1fr; }
+      .portal-preview { grid-template-columns: 1fr; }
+      .terrain-hero { padding: 2.5rem 2rem; }
+      .terrain-hero .section-title { font-size: 1.7rem; }
+      .terrain-hero-grid { flex-wrap: wrap; gap: 1.5rem; }
     }
     @media (max-width: 600px) {
       .nav-inner { padding: 0 1rem; }
@@ -650,6 +952,8 @@
       footer { flex-direction: column; gap: .8rem; text-align: center; }
       .whatsapp-float { bottom: 1rem; right: 1rem; width: 50px; height: 50px; }
       .whatsapp-float svg { width: 24px; height: 24px; }
+      .terrain-hero { padding: 2rem 1.2rem; }
+      .terrain-hero .section-title { font-size: 1.5rem; }
     }
   </style>
 </head>
@@ -662,21 +966,23 @@
       <img src="tekko-logo.png" alt="TEKKO" />
     </div>
     <div class="nav-links">
-      <a href="#comment">Comment Ã§a marche</a>
+      <a href="#comment">Comment ça marche</a>
       <a href="#avantages">Avantages</a>
       <a href="#tarifs">Tarifs</a>
+      <a href="#terrain">Terrain</a>
       <a href="#faq">FAQ</a>
     </div>
-    <a href="https://tapal.geochifa.com" class="nav-cta">CrÃ©er ma carte</a>
+    <a href="https://tapal.geochifa.com" class="nav-cta">Créer ma carte</a>
     <button class="nav-burger" id="burger" aria-label="Menu"><span></span></button>
   </div>
 </nav>
 <div class="nav-mobile-menu" id="mobile-menu">
-  <a href="#comment">Comment Ã§a marche</a>
+  <a href="#comment">Comment ça marche</a>
   <a href="#avantages">Avantages</a>
   <a href="#tarifs">Tarifs</a>
+  <a href="#terrain">Terrain</a>
   <a href="#faq">FAQ</a>
-  <a href="https://tapal.geochifa.com" style="color:var(--gold);font-weight:700;">CrÃ©er ma carte â†’</a>
+  <a href="https://tapal.geochifa.com" style="color:var(--gold);font-weight:700;">Créer ma carte →</a>
 </div>
 
 <!-- HERO -->
@@ -685,20 +991,20 @@
     <div>
       <div class="hero-pill">
         <span class="hero-pill-dot"></span>
-        Dakar, SÃ©nÃ©gal
+        Dakar, Sénégal
       </div>
       <h1>La carte de visite<br>qui <span>marque</span><br>les esprits.</h1>
       <p class="hero-sub">
         Une carte physique premium. Un tap NFC. Ton profil complet
-        s'affiche instantanÃ©ment sur n'importe quel smartphone.
+        s'affiche instantanément sur n'importe quel smartphone.
         Sans application.
       </p>
       <div class="hero-actions">
         <a href="https://tapal.geochifa.com" class="btn-dark">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          CrÃ©er ma carte
+          Créer ma carte
         </a>
-        <a href="#comment" class="btn-light">Comment Ã§a marche</a>
+        <a href="#comment" class="btn-light">Comment ça marche</a>
       </div>
     </div>
 
@@ -727,7 +1033,7 @@
         <div class="iphone">
           <div class="iphone-island"></div>
           <div class="iphone-screen" id="screen">
-            <iframe id="demo-frame" src="https://bamba.geochifa.com" title="DÃ©mo" loading="lazy" scrolling="no"></iframe>
+            <iframe id="demo-frame" src="https://bamba.geochifa.com" title="Démo" loading="lazy" scrolling="no"></iframe>
           </div>
           <div class="iphone-home"></div>
         </div>
@@ -743,7 +1049,7 @@
           <span class="card-nfc-mark">NFC</span>
         </div>
       </div>
-      <span class="demo-label">DÃ©mo live</span>
+      <span class="demo-label">Démo live</span>
     </div>
   </div>
 </div>
@@ -761,24 +1067,24 @@
 <!-- HOW -->
 <div class="wrap">
   <div class="section" id="comment">
-    <div class="section-tag">Comment Ã§a marche</div>
-    <div class="section-title">Trois Ã©tapes.</div>
-    <div class="section-sub">De la commande Ã  la rencontre qui compte.</div>
+    <div class="section-tag">Comment ça marche</div>
+    <div class="section-title">Trois étapes.</div>
+    <div class="section-sub">De la commande à la rencontre qui compte.</div>
     <div class="steps">
       <div class="step-card">
         <div class="step-num">1</div>
         <h3>Personnalise ta carte</h3>
-        <p>Choisis la matiÃ¨re, la dorure, les finitions. Remplis ton profil avec tes liens, ta bio, tes coordonnÃ©es.</p>
+        <p>Choisis la matière, la dorure, les finitions. Remplis ton profil avec tes liens, ta bio, tes coordonnées.</p>
       </div>
       <div class="step-card">
         <div class="step-num">2</div>
         <h3>On la produit</h3>
-        <p>Notre atelier imprime et programme ta carte NFC. Chaque piÃ¨ce est testÃ©e avant expÃ©dition.</p>
+        <p>Notre atelier imprime et programme ta carte NFC. Chaque pièce est testée avant expédition.</p>
       </div>
       <div class="step-card">
         <div class="step-num">3</div>
-        <h3>Tu tapes, l'autre reÃ§oit</h3>
-        <p>Un tap sur n'importe quel smartphone. Ton profil s'ouvre instantanÃ©ment. Sans app, sans friction.</p>
+        <h3>Tu tapes, l'autre reçoit</h3>
+        <p>Un tap sur n'importe quel smartphone. Ton profil s'ouvre instantanément. Sans app, sans friction.</p>
       </div>
     </div>
   </div>
@@ -797,7 +1103,7 @@
         </div>
         <div>
           <h3>Design sur mesure</h3>
-          <p>PVC soft touch, mÃ©tal brossÃ©, dorure or, argent ou cuivre. Chaque carte est unique.</p>
+          <p>PVC soft touch, métal brossé, dorure or, argent ou cuivre. Chaque carte est unique.</p>
         </div>
       </div>
       <div class="feature">
@@ -814,8 +1120,8 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         </div>
         <div>
-          <h3>Modifiable Ã  tout moment</h3>
-          <p>Tes liens, ta photo, ta bio. Mets tout Ã  jour quand tu veux, sans refaire de carte.</p>
+          <h3>Modifiable à tout moment</h3>
+          <p>Tes liens, ta photo, ta bio. Mets tout à jour quand tu veux, sans refaire de carte.</p>
         </div>
       </div>
       <div class="feature">
@@ -824,7 +1130,7 @@
         </div>
         <div>
           <h3>Packs entreprise</h3>
-          <p>Ã‰quipes de 5 Ã  500 cartes. IdentitÃ© commune, gestion centralisÃ©e, support dÃ©diÃ©.</p>
+          <p>Équipes de 5 à 500 cartes. Identité commune, gestion centralisée, support dédié.</p>
         </div>
       </div>
       <div class="feature">
@@ -832,8 +1138,8 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
         </div>
         <div>
-          <h3>Galerie souvenirs privÃ©e</h3>
-          <p>AprÃ¨s l'Ã©vÃ©nement, un tap ouvre une galerie photo privÃ©e, une vidÃ©o rÃ©capitulative ou un livre d'or numÃ©rique pour prolonger l'expÃ©rience.</p>
+          <h3>Galerie souvenirs privée</h3>
+          <p>Après l'événement, un tap ouvre une galerie photo privée, une vidéo récapitulative ou un livre d'or numérique pour prolonger l'expérience.</p>
         </div>
       </div>
       <div class="feature">
@@ -842,7 +1148,7 @@
         </div>
         <div>
           <h3>Catalogue de ressources</h3>
-          <p>IdÃ©al pour sÃ©minaires et formations: la carte donne accÃ¨s aux supports, fiches techniques, liens utiles et documents mis Ã  jour mÃªme aprÃ¨s l'Ã©vÃ©nement.</p>
+          <p>Idéal pour séminaires et formations: la carte donne accès aux supports, fiches techniques, liens utiles et documents mis à jour même après l'événement.</p>
         </div>
       </div>
     </div>
@@ -854,7 +1160,7 @@
   <div class="section" id="tarifs">
     <div class="section-tag">Tarifs</div>
     <div class="section-title">Transparent.</div>
-    <div class="section-sub">Livraison partout au SÃ©nÃ©gal. Paiement sÃ©curisÃ©.</div>
+    <div class="section-sub">Livraison partout au Sénégal. Paiement sécurisé.</div>
     <div class="pricing">
       <div class="price-card">
         <div class="price-tier">Starter</div>
@@ -862,7 +1168,7 @@
         <div class="price-desc">Une carte NFC propre et efficace pour commencer.</div>
         <ul class="price-list">
           <li>1 carte NFC PVC soft touch</li>
-          <li>Profil digital personnalisÃ©</li>
+          <li>Profil digital personnalisé</li>
           <li>QR code au verso</li>
           <li>Livraison sous 72h</li>
         </ul>
@@ -872,9 +1178,9 @@
         <div class="pop-badge">Populaire</div>
         <div class="price-tier">Pro</div>
         <div class="price-amount">22 500 <sub>FCFA</sub></div>
-        <div class="price-desc">La carte qui fait la diffÃ©rence en rendez-vous.</div>
+        <div class="price-desc">La carte qui fait la différence en rendez-vous.</div>
         <ul class="price-list">
-          <li>1 carte PVC premium ou mÃ©tal</li>
+          <li>1 carte PVC premium ou métal</li>
           <li>Dorure au choix</li>
           <li>Design sur mesure</li>
           <li>Profil digital complet</li>
@@ -883,16 +1189,17 @@
         <a href="https://tapal.geochifa.com" class="price-btn fill">Commander</a>
       </div>
       <div class="price-card">
-        <div class="pop-badge" style="background:#1dc1ec;">Pack Ã©quipe</div>
+        <div class="pop-badge" style="background:#1dc1ec;">Pack équipe</div>
         <div class="price-tier">Business</div>
-        <div class="price-amount">60 000 <sub>FCFA</sub></div>
-        <div class="price-desc">5 cartes NFC avec un domaine partagÃ© pour toute l'Ã©quipe.</div>
+        <div class="price-amount">77 625 <sub>FCFA</sub></div>
+        <div class="price-save-badge">-15%</div>
+        <div class="price-desc">5 cartes NFC avec un domaine partagé pour toute l'équipe.</div>
         <ul class="price-list">
           <li>5 cartes NFC premium</li>
-          <li>Domaine commun partagÃ© <strong>â€“20%</strong></li>
-          <li>Dashboard Ã©quipe</li>
-          <li>Galerie souvenirs privÃ©e ou livre d'or numÃ©rique</li>
-          <li>Catalogue de ressources et documents Ã  distance</li>
+          <li>Domaine commun partagé pour l'équipe</li>
+          <li>Dashboard équipe</li>
+          <li>Galerie souvenirs privée ou livre d'or numérique</li>
+          <li>Catalogue de ressources et documents à distance</li>
           <li>Support prioritaire</li>
           <li>Livraison sous 5 jours</li>
         </ul>
@@ -900,16 +1207,16 @@
       </div>
       <div class="price-card">
         <div class="pop-badge" style="background:#1a9d8f;">Sur commande</div>
-        <div class="price-tier">Ceremonies</div>
+        <div class="price-tier">Cérémonies</div>
         <div class="price-amount">Sur devis</div>
-        <div class="price-desc">Mariages, galas, sÃ©minaires, formations. Une expÃ©rience NFC sur mesure pour vos Ã©vÃ©nements.</div>
+        <div class="price-desc">Mariages, galas, séminaires, formations. Une expérience NFC sur mesure pour vos événements.</div>
         <ul class="price-list">
-          <li>Cartes NFC personnalisÃ©es aux couleurs de l'Ã©vÃ©nement</li>
-          <li>Galerie photos et souvenirs numÃ©riques</li>
-          <li>VidÃ©o rÃ©capitulative et livre d'or digital</li>
+          <li>Cartes NFC personnalisées aux couleurs de l'événement</li>
+          <li>Galerie photos et souvenirs numériques</li>
+          <li>Vidéo récapitulative et livre d'or digital</li>
           <li>Catalogue de ressources et documents</li>
-          <li>Mise Ã  jour Ã  distance aprÃ¨s l'Ã©vÃ©nement</li>
-          <li>Accompagnement dÃ©diÃ© de A Ã  Z</li>
+          <li>Mise à jour à distance après l'événement</li>
+          <li>Accompagnement dédié de A à Z</li>
         </ul>
         <a href="https://tapal.geochifa.com/ceremonies" class="price-btn fill" style="background:#1a9d8f;">Demander un devis</a>
       </div>
@@ -917,32 +1224,261 @@
   </div>
 </div>
 
+
+<!-- BRIDGE -->
+<div class="wrap">
+  <div class="section bridge-section" style="text-align:center;padding:3rem 0 1rem;">
+    <div class="hero-pill" style="margin:0 auto 1.2rem;">
+      <span class="hero-pill-dot"></span>
+      Nouveau
+    </div>
+    <div class="section-title" style="max-width:560px;margin:0 auto .6rem;">La technologie NFC,<br>au service du terrain.</div>
+    <p class="section-sub" style="max-width:480px;margin:0 auto;text-align:center;">TEKKO équipe aussi les institutions. Foncier, infrastructures, suivi environnemental : chaque objet physique devient traçable grâce à un tag NFC et un portail de supervision.</p>
+  </div>
+</div>
+<!-- TERRAIN -->
+<div class="terrain-zone">
+<div class="wrap">
+  <div class="section" id="terrain">
+
+    <!-- Terrain Hero -->
+    <div class="terrain-hero">
+      <div class="terrain-hero-content">
+        <div class="section-tag">TEKKO Géomatique</div>
+        <div class="section-title">Supervision terrain.<br>Précision NFC.</div>
+        <div class="section-sub">
+          Des tags NFC déployés sur le terrain, un portail de supervision en temps réel.
+          Foncier, infrastructure, suivi M&E : chaque objet physique devient traçable.
+        </div>
+        <div class="terrain-hero-grid">
+          <div class="terrain-stat"><strong>NFC + GPS</strong><span>Géolocalisation au scan</span></div>
+          <div class="terrain-stat"><strong>PostGIS</strong><span>Données spatiales</span></div>
+          <div class="terrain-stat"><strong>Read-only</strong><span>Portail client sécurisé</span></div>
+          <div class="terrain-stat"><strong>M&E</strong><span>Exports bailleurs</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Actors -->
+    <div class="section-tag">Comment ça marche</div>
+    <div class="section-title">On s'occupe de tout.</div>
+    <div class="section-sub">GeoChifa configure, programme et déploie. Vous recevez un outil prêt à l'emploi, avec un accompagnement de A à Z.</div>
+
+    <div class="actors">
+      <div class="actor-card actor-admin">
+        <div class="actor-role-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4"/></svg>
+          On configure
+        </div>
+        <h3>GeoChifa</h3>
+        <p>On programme les tags NFC, on met en place l'infrastructure PostGIS et on prépare votre portail. Vous n'avez rien à installer.</p>
+        <ul class="actor-perms">
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Tags NFC pré-programmés</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Portail configuré pour vous</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Alertes &amp; rapports activés</li>
+        </ul>
+      </div>
+
+      <div class="actor-card actor-agent">
+        <div class="actor-role-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Vous déployez
+        </div>
+        <h3>Vos agents terrain</h3>
+        <p>Vos équipes reçoivent les tags prêts à poser et une app mobile guidée. On les forme, ils n'ont qu'à suivre.</p>
+        <ul class="actor-perms">
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> App mobile pas-à-pas</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Scan, photo, validation GPS</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Formation &amp; support inclus</li>
+        </ul>
+      </div>
+
+      <div class="actor-card actor-client">
+        <div class="actor-role-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Vous supervisez
+        </div>
+        <h3>Votre portail</h3>
+        <p>Vous suivez tout depuis un tableau de bord dédié. Carte, alertes, exports. 100% lecture seule, zéro complexité.</p>
+        <ul class="actor-perms">
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Carte interactive en temps réel</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Export CSV/PDF pour bailleurs</li>
+          <li><span class="perm-yes"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> Accompagnement continu</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Use cases -->
+    <div class="section-tag">Cas d'usage</div>
+    <div class="section-title">Du foncier aux infrastructures.</div>
+    <div class="section-sub">Chaque objet physique reçoit un tag NFC unique. Chaque scan génère une trace géolocalisée.</div>
+
+    <div class="usecases">
+      <div class="usecase">
+        <div class="usecase-num">01</div>
+        <div class="usecase-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
+        </div>
+        <h3>Cadastre &amp; Foncier</h3>
+        <p>Tag NFC sur chaque borne parcellaire. Identification du NICAD, historique des scans, alerte si borne déplacée.</p>
+      </div>
+      <div class="usecase">
+        <div class="usecase-num">02</div>
+        <div class="usecase-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <h3>Infrastructures publiques</h3>
+        <p>Écoles, centres de santé, forages. Un scan pour vérifier l'existence, l'état et le dernier passage de maintenance.</p>
+      </div>
+      <div class="usecase">
+        <div class="usecase-num">03</div>
+        <div class="usecase-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <h3>Suivi environnemental</h3>
+        <p>Arbres plantés, zones protégées, points d'eau. Preuve de visite géolocalisée pour les rapports M&E des bailleurs.</p>
+      </div>
+      <div class="usecase">
+        <div class="usecase-num">04</div>
+        <div class="usecase-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3>Rapports bailleurs</h3>
+        <p>Export PDF/CSV automatique avec données GPS, photos, horodatage. Compatible avec les exigences des partenaires internationaux.</p>
+      </div>
+    </div>
+
+    <!-- Portal preview -->
+    <div class="section-tag">Portail client</div>
+    <div class="section-title">Supervision en temps réel.</div>
+    <div class="section-sub">Chaque client institutionnel accède à un portail dédié, entièrement en lecture seule.</div>
+
+    <div class="portal-preview">
+      <div class="portal-modules">
+        <div class="portal-module">
+          <div class="portal-module-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+          </div>
+          <div>
+            <h4>Carte interactive</h4>
+            <p>Tous les tags déployés sur MapLibre, filtres par statut</p>
+          </div>
+        </div>
+        <div class="portal-module">
+          <div class="portal-module-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+          </div>
+          <div>
+            <h4>Dashboard KPIs</h4>
+            <p>Tags déployés, taux de couverture, alertes actives</p>
+          </div>
+        </div>
+        <div class="portal-module">
+          <div class="portal-module-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <h4>Alertes automatiques</h4>
+            <p>Email/SMS si tag non scanné depuis X jours ou anomalie GPS</p>
+          </div>
+        </div>
+        <div class="portal-module">
+          <div class="portal-module-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div>
+            <h4>Export M&E</h4>
+            <p>CSV complet, PDF rapport bailleurs avec logo client</p>
+          </div>
+        </div>
+        <div class="portal-module">
+          <div class="portal-module-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <h4>Historique scans</h4>
+            <p>Date, heure, agent, confirmation GPS de chaque passage</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dark mockup -->
+      <div class="portal-mockup">
+        <div class="portal-topbar">
+          <div class="portal-dot r"></div>
+          <div class="portal-dot y"></div>
+          <div class="portal-dot g"></div>
+        </div>
+        <div class="portal-kpis">
+          <div class="portal-kpi"><strong>247</strong><span>Tags déployés</span></div>
+          <div class="portal-kpi"><strong>89%</strong><span>Couverture</span></div>
+          <div class="portal-kpi"><strong>3</strong><span>Alertes actives</span></div>
+        </div>
+        <div class="portal-map">
+          <div class="portal-map-pins">
+            <div class="portal-pin pin-green" style="top:25%;left:30%"></div>
+            <div class="portal-pin pin-green" style="top:40%;left:55%"></div>
+            <div class="portal-pin pin-gold" style="top:60%;left:40%"></div>
+            <div class="portal-pin pin-green" style="top:35%;left:70%"></div>
+            <div class="portal-pin pin-orange" style="top:70%;left:65%"></div>
+            <div class="portal-pin pin-green" style="top:20%;left:48%"></div>
+            <div class="portal-pin pin-gold" style="top:55%;left:22%"></div>
+            <div class="portal-pin pin-green" style="top:75%;left:80%"></div>
+          </div>
+        </div>
+        <div class="portal-readonly-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Lecture seule
+        </div>
+      </div>
+    </div>
+
+    <!-- Terrain CTA -->
+    <div class="terrain-cta">
+      <a href="https://wa.me/221776585371?text=Bonjour%2C%20je%20suis%20int%C3%A9ress%C3%A9%20par%20TEKKO%20Terrain%20pour%20un%20projet%20institutionnel." class="btn-dark" target="_blank" rel="noreferrer">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Discuter d'un projet terrain
+      </a>
+    </div>
+
+  </div>
+</div>
+</div>
+
 <!-- FAQ -->
 <div class="wrap">
   <div class="section" id="faq">
-    <div class="section-tag">Questions frÃ©quentes</div>
-    <div class="section-title">On rÃ©pond.</div>
+    <div class="section-tag">Questions fréquentes</div>
+    <div class="section-title">On répond.</div>
     <div class="section-sub">L'essentiel en quelques clics.</div>
     <div class="faq-list">
       <details class="faq-item">
-        <summary>Est-ce que Ã§a marche avec tous les tÃ©lÃ©phones ?</summary>
-        <p>Oui. La carte utilise la technologie NFC, compatible avec tous les iPhone (XR et plus rÃ©cents) et la plupart des Android. Un QR code au verso permet aussi de scanner sans NFC.</p>
+        <summary>Est-ce que ça marche avec tous les téléphones ?</summary>
+        <p>Oui. La carte utilise la technologie NFC, compatible avec tous les iPhone (XR et plus récents) et la plupart des Android. Un QR code au verso permet aussi de scanner sans NFC.</p>
       </details>
       <details class="faq-item">
         <summary>Faut-il installer une application ?</summary>
-        <p>Non. Aucune application requise. Le profil s'ouvre directement dans le navigateur du tÃ©lÃ©phone, en un tap ou un scan.</p>
+        <p>Non. Aucune application requise. Le profil s’ouvre directement dans le navigateur du téléphone, en un tap ou un scan.</p>
       </details>
       <details class="faq-item">
-        <summary>Puis-je modifier mon profil aprÃ¨s la commande ?</summary>
-        <p>Oui, vos informations (photo, bio, liens, coordonnÃ©es) sont modifiables Ã  tout moment sans avoir besoin de refaire la carte.</p>
+        <summary>Puis-je modifier mon profil après la commande ?</summary>
+        <p>Oui, vos informations (photo, bio, liens, coordonnées) sont modifiables à tout moment sans avoir besoin de refaire la carte.</p>
       </details>
       <details class="faq-item">
-        <summary>Quel est le dÃ©lai de livraison ?</summary>
-        <p>48h Ã  Dakar, 2 Ã  5 jours ouvrÃ©s dans le reste du SÃ©nÃ©gal. Livraison internationale sous 1 Ã  4 semaines.</p>
+        <summary>Quel est le délai de livraison ?</summary>
+        <p>48h à Dakar, 2 à 5 jours ouvrés dans le reste du Sénégal. Livraison internationale sous 1 à 4 semaines.</p>
       </details>
       <details class="faq-item">
         <summary>Comment payer ?</summary>
-        <p>Le paiement se fait via Wave de maniÃ¨re sÃ©curisÃ©e. Vous recevez un reÃ§u par email avec votre carte digitale.</p>
+        <p>Le paiement se fait via Wave de manière sécurisée. Vous recevez un reçu par email avec votre carte digitale.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Quelle différence entre les cartes de visite et la solution Terrain ?</summary>
+        <p>Les cartes de visite TEKKO sont des produits individuels pour le networking. La solution Terrain est un service pour les institutions : tags NFC déployés sur des objets physiques (bornes, infrastructures) avec un portail de supervision et des exports M&amp;E.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Le client institutionnel peut-il modifier les données terrain ?</summary>
+        <p>Non. Le portail client est 100% lecture seule. Seul GeoChifa contrôle l’encodage, la configuration et les données PostGIS. C’est cette séparation qui garantit l’intégrité et la crédibilité auprès des bailleurs.</p>
       </details>
     </div>
   </div>
@@ -952,13 +1488,15 @@
 <div class="wrap">
   <div class="cta-section">
     <div class="cta-box">
-      <h2>PrÃªt Ã  remplacer le papier ?</h2>
-      <p>Rejoins les professionnels qui networkent avec une carte TEKKO.</p>
-      <a href="https://tapal.geochifa.com" class="cta-btn">CrÃ©er ma carte</a>
+      <h2>Prêt à passer au NFC ?</h2>
+      <p>Carte de visite premium ou supervision terrain, TEKKO a la solution.</p>
+      <div style="display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;">
+        <a href="https://tapal.geochifa.com" class="cta-btn">Créer ma carte</a>
+        <a href="https://wa.me/221776585371?text=Bonjour%2C%20je%20suis%20int%C3%A9ress%C3%A9%20par%20TEKKO%20Terrain." class="cta-btn" style="background:transparent;color:var(--gold);border:1.5px solid var(--gold);" target="_blank" rel="noreferrer">Projet terrain</a>
+      </div>
     </div>
   </div>
 </div>
-
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">
@@ -966,10 +1504,10 @@
   </div>
   <div class="footer-links">
     <a href="https://wa.me/221776585371" target="_blank" rel="noreferrer">WhatsApp</a>
-    <span>Â·</span>
+    <span>·</span>
     <a href="mailto:cheikhabgn@gmail.com">Email</a>
-    <span>Â·</span>
-    <span>Dakar, SÃ©nÃ©gal</span>
+    <span>·</span>
+    <span>Dakar, Sénégal</span>
   </div>
 </footer>
 

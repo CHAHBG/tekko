@@ -29,7 +29,7 @@ const IMAGE_SLOTS = [
 const PACK_LABELS = {
   starter: 'Starter — 15 000 FCFA',
   pro: 'Pro — 22 500 FCFA',
-  business: 'Business — 60 000 FCFA',
+  business: 'Business — 77 625 FCFA',
 };
 
 const SILENCE_TIMEOUT_MS = 2800;
@@ -53,7 +53,7 @@ const NEXT_PROMPTS = {
     role: 'Quelle est votre profession ou fonction ?',
     company: "Quel est le nom de votre entreprise ? Dites « non » si vous n'en avez pas.",
     email: "Quelle est votre adresse email ? Dites « non » pour passer.",
-    packKey: 'Quel pack ? Dites 1 pour Starter à 15 000 F, 2 pour Pro à 22 500 F, ou 3 pour Business à 60 000 F.',
+    packKey: 'Quel pack ? Dites 1 pour Starter à 15 000 F, 2 pour Pro à 22 500 F, ou 3 pour Business à 77 625 F.',
     images: 'Voulez-vous ajouter des images ? Photo de profil, logo, spécialisation ou couverture. Appuyez sur les boutons ou dites non pour passer.',
     complete: 'Parfait ! Votre commande est en cours de création...',
     invalid_phone: "Ce numéro ne semble pas valide. Tapez un numéro sénégalais, ex : 77 123 45 67.",
@@ -65,7 +65,7 @@ const NEXT_PROMPTS = {
     role: 'What is your profession or role?',
     company: "What is your company name? Say 'no' if you don't have one.",
     email: "What is your email? Say 'no' to skip.",
-    packKey: 'Which pack? Say 1 for Starter at 15,000F, 2 for Pro at 22,500F, or 3 for Business at 60,000F.',
+    packKey: 'Which pack? Say 1 for Starter at 15,000F, 2 for Pro at 22,500F, or 3 for Business at 77,625F.',
     images: 'Want to add images? Profile photo, logo, specialization or cover. Tap the buttons or say no to skip.',
     complete: 'Your order is being created!',
     invalid_phone: "That number doesn't look right. Type a Senegalese number, e.g. 77 123 45 67.",
@@ -77,7 +77,7 @@ const NEXT_PROMPTS = {
     role: 'Lan ngay liggéey?',
     company: "Naka la sa liggéeykat di tudd? Wax déedéet soo amul.",
     email: "Ana sa iimeel? Wax déedéet ngir wàcc.",
-    packKey: 'Ban benn nga bëgg? Wax 1 ngir Starter ci 15 000 F, 2 ngir Pro ci 22 500 F, walla 3 ngir Business ci 60 000 F.',
+    packKey: 'Ban benn nga bëgg? Wax 1 ngir Starter ci 15 000 F, 2 ngir Pro ci 22 500 F, walla 3 ngir Business ci 77 625 F.',
     images: 'Bëgg nga yokk sa nataal? Sa suuret, sa xët liggéey, walla sa kuwertiir. Tobbal ci bitoŋ yi walla wax déedéet.',
     complete: 'Baax na! Sa santaane moo ngi jëm...',
     invalid_phone: 'Nimero bi baaxul. Bindal nimero bu wér, ni: 77 123 45 67.',
@@ -89,7 +89,7 @@ const NEXT_PROMPTS = {
     role: 'Hol ko ngolliɗaa?',
     company: 'Hol innde gollordu maa? Wiy alaa so alaa.',
     email: 'Hol iimeel maa? Wiy alaa ngam ɓennugo.',
-    packKey: 'Hol feere njiɗɗaa? Wiy 1 ngam Starter e 15 000 F, 2 ngam Pro e 22 500 F, maa 3 ngam Business e 60 000 F.',
+    packKey: 'Hol feere njiɗɗaa? Wiy 1 ngam Starter e 15 000 F, 2 ngam Pro e 22 500 F, maa 3 ngam Business e 77 625 F.',
     images: 'Aɗa yiɗi ɓeydude natal? Natal maa, natal golle, maa kuwertiir. Ñoƴƴu bitoŋ ɗen maa wiy alaa.',
     complete: 'A wooɗi! Yamiroore maa ina yahda...',
     invalid_phone: 'Nimero oo moƴƴaani. Winndu nimero moƴƴo, wa: 77 123 45 67.',
@@ -122,7 +122,7 @@ const PACK_MAP = {
   '22': 'pro', '22500': 'pro',
   '3': 'business', 'business': 'business', 'equipe': 'business',
   'équipe': 'business', 'team': 'business', '5 cartes': 'business',
-  '60': 'business', '60000': 'business',
+  '77': 'business', '77625': 'business',
 };
 
 function tryDirectExtract(text, field) {
@@ -227,6 +227,35 @@ function getNextPrompt(nextField, data, lang) {
 }
 
 // ─── Component ──────────────
+
+// ─── Voice selection — prefer neural (Google / Microsoft) voices ─────────────
+const voicesCacheRef = { current: [] };
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  const loadVoices = () => { voicesCacheRef.current = window.speechSynthesis.getVoices(); };
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function getBestVoice(lang) {
+  const voices = voicesCacheRef.current;
+  if (!voices.length) return null;
+
+  const bcp47 = lang === 'en' ? 'en' : 'fr';
+
+  // Priority tiers: Google neural > Microsoft neural > any matching lang
+  const tiers = [
+    (v) => /google/i.test(v.name) && v.lang.startsWith(bcp47),
+    (v) => /microsoft/i.test(v.name) && v.lang.startsWith(bcp47) && !/zira|david|mark/i.test(v.name),
+    (v) => v.lang.startsWith(bcp47) && !v.localService,
+    (v) => v.lang.startsWith(bcp47),
+  ];
+
+  for (const tier of tiers) {
+    const match = voices.find(tier);
+    if (match) return match;
+  }
+  return null;
+}
 
 export default function VoiceAssistant({ isOpen, onClose }) {
   const [language, setLanguage] = useState(null);
@@ -386,7 +415,11 @@ export default function VoiceAssistant({ isOpen, onClose }) {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = effectiveLang === 'en' ? 'en-US' : 'fr-FR';
-    utterance.rate = 0.88;
+    // Pick the most natural-sounding available voice
+    const bestVoice = getBestVoice(effectiveLang);
+    if (bestVoice) utterance.voice = bestVoice;
+    utterance.rate = 1.0;   // natural conversational speed (0.88 sounds deliberate/robotic)
+    utterance.pitch = 1.08; // slightly warmer tone
 
     const doStartListening = () => {
       if (window.speechSynthesis.speaking) return;

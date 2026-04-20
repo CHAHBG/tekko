@@ -132,6 +132,9 @@ export function buildWhatsAppUrl(brief, phone = WHATSAPP_STUDIO_NUMBER) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(brief)}`;
 }
 
+const PRO_PACK_PRICE = 22500;
+const BUSINESS_PACK_PRICE = Math.round(PRO_PACK_PRICE * 3 * 1.15);
+
 export const packCatalog = {
   starter: {
     key: 'starter',
@@ -143,17 +146,17 @@ export const packCatalog = {
   pro: {
     key: 'pro',
     name: 'Pro',
-    price: 22500,
+    price: PRO_PACK_PRICE,
     quantity: 1,
     caption: 'Carte premium avec dorure et design sur mesure.',
   },
   business: {
     key: 'business',
     name: 'Business',
-    price: 114750,
-    perCardBase: 27000,
-    quantity: 5,
+    price: BUSINESS_PACK_PRICE,
     discountBadge: '-15%',
+    perCardBase: Math.round(BUSINESS_PACK_PRICE / 5),
+    quantity: 5,
     caption: '5 cartes NFC premium — domaine dédié, dorure, design haut de gamme.',
   },
 };

@@ -107,11 +107,30 @@ function loadGoogleMaps() {
 
 function LocationPicker({ value, onChange }) {
   const inputRef = useRef(null);
+  const debounceRef = useRef(null);
   const [selected, setSelected] = useState(null);
+  const [inputValue, setInputValue] = useState(value || '');
   const [mapsReady, setMapsReady] = useState(() => !!window.google?.maps?.places);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionMode, setSuggestionMode] = useState(() => (GOOGLE_MAPS_KEY ? 'google' : 'fallback'));
 
   useEffect(() => {
-    loadGoogleMaps().then(() => setMapsReady(true)).catch(() => {});
+    setInputValue(value || '');
+  }, [value]);
+
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_KEY) return;
+    loadGoogleMaps()
+      .then(() => {
+        setMapsReady(true);
+        setSuggestionMode('google');
+      })
+      .catch(() => {
+        setSuggestionMode('fallback');
+      });
   }, []);
 
   useEffect(() => {
@@ -124,7 +143,9 @@ function LocationPicker({ value, onChange }) {
       const label = inputRef.current?.value || place.formatted_address || place.name || '';
       const lat = place.geometry?.location?.lat();
       const lng = place.geometry?.location?.lng();
+      setInputValue(label);
       setSelected({ lat, lng, label });
+      setSuggestions([]);
       onChange(label);
     });
     return () => {
@@ -132,9 +153,63 @@ function LocationPicker({ value, onChange }) {
     };
   }, [mapsReady, onChange]);
 
-  const staticMapUrl = selected?.lat != null
+  useEffect(() => {
+    if (mapsReady || suggestionMode !== 'fallback') return;
+
+    const query = inputValue.trim();
+    if (query.length < 3) {
+      setSuggestions([]);
+      setIsLoadingSuggestions(false);
+      return;
+    }
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(async () => {
+      try {
+        setIsLoadingSuggestions(true);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error('Location lookup failed');
+        const results = await response.json();
+        setSuggestions(
+          (results || []).map((item) => ({
+            label: item.display_name,
+            lat: Number(item.lat),
+            lng: Number(item.lon),
+          })),
+        );
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [inputValue, mapsReady, suggestionMode]);
+
+  const staticMapUrl = selected?.lat != null && GOOGLE_MAPS_KEY
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${selected.lat},${selected.lng}&zoom=15&size=480x180&scale=2&markers=color:red%7C${selected.lat},${selected.lng}&key=${GOOGLE_MAPS_KEY}`
     : null;
+  const osmEmbedUrl = selected?.lat != null && !GOOGLE_MAPS_KEY
+    ? (() => {
+      const latDelta = 0.008;
+      const lngDelta = 0.012;
+      const bbox = [
+        selected.lng - lngDelta,
+        selected.lat - latDelta,
+        selected.lng + lngDelta,
+        selected.lat + latDelta,
+      ].join(',');
+      return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${selected.lat},${selected.lng}`)}`;
+    })()
+    : null;
+
+  function applySuggestion(next) {
+    setInputValue(next.label);
+    setSelected(next);
+    setSuggestions([]);
+    onChange(next.label);
+  }
 
   return (
     <div className="location-picker">
@@ -145,15 +220,58 @@ function LocationPicker({ value, onChange }) {
             ref={inputRef}
             type="text"
             className="location-input"
-            defaultValue={value || ''}
+            value={inputValue}
             placeholder="Rechercher un lieu, une entreprise..."
-            onBlur={(e) => { if (e.target.value && e.target.value !== value) onChange(e.target.value); }}
+            onChange={(event) => {
+              setInputValue(event.target.value);
+              if (mapsReady) onChange(event.target.value);
+            }}
+            onBlur={(event) => {
+              window.setTimeout(() => {
+                if (event.target.value && event.target.value !== value) onChange(event.target.value);
+                setSuggestions([]);
+              }, 120);
+            }}
           />
         </div>
       </div>
-      {staticMapUrl && (
+      {suggestionMode === 'fallback' && (
+        <div className="location-help-row">
+          <span className="location-help-text">
+            {isLoadingSuggestions ? 'Recherche de suggestions...' : 'Suggestions de lieu actives.'}
+          </span>
+        </div>
+      )}
+      {!mapsReady && suggestions.length > 0 && (
+        <div className="location-suggestions" role="listbox" aria-label="Suggestions de lieu">
+          {suggestions.map((suggestion) => (
+            <button
+              key={`${suggestion.label}-${suggestion.lat}-${suggestion.lng}`}
+              type="button"
+              className="location-suggestion-item"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                applySuggestion(suggestion);
+              }}
+            >
+              {suggestion.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {(staticMapUrl || osmEmbedUrl) && (
         <div className="location-map-wrap">
-          <img src={staticMapUrl} alt="Carte" className="location-map-static" />
+          {staticMapUrl ? (
+            <img src={staticMapUrl} alt="Carte" className="location-map-static" />
+          ) : (
+            <iframe
+              src={osmEmbedUrl}
+              title="Aperçu de la carte"
+              className="location-map-static location-map-static-frame"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          )}
           <div className="location-map-label">{selected.label}</div>
         </div>
       )}
@@ -1644,8 +1762,10 @@ export function BuilderView() {
               <FieldEditor
                 editingField={editingField}
                 profile={profile}
+                customization={customization}
                 assets={assets}
                 onFieldChange={updateProfile}
+                onCustomizationChange={updateCustomization}
                 onImageFileChange={handleAssetFile}
                 onImageRemoteChange={handleAssetRemote}
                 onImageRemove={handleRemoveAsset}

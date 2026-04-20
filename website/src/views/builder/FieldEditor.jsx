@@ -11,6 +11,15 @@ const EXTRA_FIELD_META = {
   },
 };
 
+const CUSTOMIZATION_FIELD_META = {
+  cardLabel: {
+    key: 'cardLabel',
+    label: 'Label carte',
+    type: 'text',
+    placeholder: 'Tapal Signature',
+  },
+};
+
 const IMAGE_META = {
   avatar: {
     label: 'Photo de profil',
@@ -99,8 +108,10 @@ function ImageAdjustments({ assetKey, asset, onAdjustAsset }) {
 export function FieldEditor({
   editingField,
   profile,
+  customization,
   assets,
   onFieldChange,
+  onCustomizationChange,
   onImageFileChange,
   onImageRemoteChange,
   onImageRemove,
@@ -161,8 +172,22 @@ export function FieldEditor({
     if (!editingField || editingField.type !== 'field') return null;
     return profileFields.find((field) => field.key === editingField.key)
       || EXTRA_FIELD_META[editingField.key]
+      || CUSTOMIZATION_FIELD_META[editingField.key]
       || null;
   }, [editingField]);
+
+  const isCustomizationField = Boolean(editingField?.type === 'field' && CUSTOMIZATION_FIELD_META[editingField.key]);
+  const fieldValue = editingField?.type === 'field'
+    ? (isCustomizationField ? customization?.[editingField.key] || '' : profile[editingField.key] || '')
+    : '';
+
+  function handleTextChange(value) {
+    if (isCustomizationField) {
+      onCustomizationChange?.(editingField.key, value);
+      return;
+    }
+    onFieldChange(editingField.key, value);
+  }
 
   if (!editingField) return null;
 
@@ -203,9 +228,9 @@ export function FieldEditor({
                 <textarea
                   ref={inputRef}
                   rows="4"
-                  value={profile[editingField.key] || ''}
+                  value={fieldValue}
                   placeholder={fieldMeta.placeholder}
-                  onChange={(event) => onFieldChange(editingField.key, event.target.value)}
+                  onChange={(event) => handleTextChange(event.target.value)}
                 />
               </label>
             ) : (
@@ -214,9 +239,9 @@ export function FieldEditor({
                 <input
                   ref={inputRef}
                   type={fieldMeta.type}
-                  value={profile[editingField.key] || ''}
+                  value={fieldValue}
                   placeholder={fieldMeta.placeholder || fieldMeta.label}
-                  onChange={(event) => onFieldChange(editingField.key, event.target.value)}
+                  onChange={(event) => handleTextChange(event.target.value)}
                 />
               </label>
             )}

@@ -62,6 +62,13 @@ export function updateAdminOrder(orderId, updates, token) {
   });
 }
 
+export function deleteAdminOrder(orderId, token) {
+  return request(`/admin/orders/${encodeURIComponent(orderId)}`, {
+    method: 'DELETE',
+    headers: { 'x-admin-token': token },
+  });
+}
+
 export function updateAdminCard(orderId, cardData, token) {
   return request(`/admin/orders/${orderId}/card`, {
     method: 'PATCH',

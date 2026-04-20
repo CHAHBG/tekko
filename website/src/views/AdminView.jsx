@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchAdminOrders, updateAdminOrder, updateAdminCard, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
+import { fetchAdminOrders, updateAdminOrder, deleteAdminOrder, updateAdminCard, fetchInventory, setInventoryItem, adminLogin, fetchAdminCoupons, createAdminCoupon, deleteAdminCoupon, fetchAdminCeremonies, updateAdminCeremony, generateAdminInvoice, regeneratePaymentLink, applyAdminCoupon, uploadAdminAssets, fetchAdminAnalytics, fetchAdminAnalyticsVisits } from '../lib/api';
 import { formatMoney, getAssetDisplayUrl, materialCatalog, foilCatalog } from '../lib/catalog';
 
 function createDrafts(orders) {
@@ -61,7 +61,7 @@ function deviceLabel(type) {
 }
 
 function AnalyticsBarList({ items }) {
-	if (!items?.length) return <div className="analytics-empty">Aucune donnÃ©e</div>;
+	if (!items?.length) return <div className="analytics-empty">Aucune donnée</div>;
 	const max = Math.max(...items.map((i) => i.visits), 1);
 	return (
 		<div>
@@ -79,7 +79,7 @@ function AnalyticsBarList({ items }) {
 }
 
 function TimeSeriesChart({ data }) {
-	if (!data?.length) return <div className="analytics-empty">Aucune donnee</div>;
+	if (!data?.length) return <div className="analytics-empty">Aucune donnée</div>;
 	const max = Math.max(...data.map((d) => d.visits), 1);
 	return (
 		<div className="analytics-timeseries">
@@ -240,7 +240,7 @@ function VisitorMap({ locations }) {
 		return (
 			<div className="analytics-map-empty">
 				<IconMap />
-				<span>Aucune donnee de localisation disponible</span>
+				<span>Aucune donnée de localisation disponible</span>
 			</div>
 		);
 	}
@@ -290,6 +290,7 @@ export function AdminView() {
 	const [analyticsVisits, setAnalyticsVisits] = useState([]);
 	const [analyticsLoading, setAnalyticsLoading] = useState(false);
 	const [analyticsPeriod, setAnalyticsPeriod] = useState('7d');
+	const [visitKindFilter, setVisitKindFilter] = useState('card');
 
 	// â”€â”€ COLLAPSIBLE ORDERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	const [expandedOrders, setExpandedOrders] = useState(new Set());
@@ -321,7 +322,7 @@ export function AdminView() {
 		window.localStorage.removeItem('tapal-admin-token');
 		setToken('');
 		setOrders([]);
-		setStatus({ type: 'error', message: 'Session expirÃ©e. Reconnectez-vous.' });
+		setStatus({ type: 'error', message: 'Session expirée. Reconnectez-vous.' });
 	}
 
 	async function loadOrders(currentToken) {
@@ -331,7 +332,7 @@ export function AdminView() {
 			const response = await fetchAdminOrders(currentToken);
 			setOrders(response.orders);
 			setDrafts(createDrafts(response.orders));
-			setStatus({ type: 'success', message: `${response.orders.length} commandes chargÃ©es.` });
+			setStatus({ type: 'success', message: `${response.orders.length} commandes chargées.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
@@ -468,7 +469,7 @@ export function AdminView() {
 			setInvoiceResult(result);
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
-			setInvoiceError(error.message ?? 'Erreur lors de la gÃ©nÃ©ration.');
+			setInvoiceError(error.message ?? 'Erreur lors de la génération.');
 		} finally {
 			setInvoiceSaving(false);
 		}
@@ -526,7 +527,7 @@ export function AdminView() {
 			const nextOrders = orders.map((o) => (o.orderId === orderId ? response.order : o));
 			setOrders(nextOrders);
 			setDrafts(createDrafts(nextOrders));
-			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} marquee livree.` });
+			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} marquée livrée.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
@@ -549,12 +550,27 @@ export function AdminView() {
 			const nextOrders = orders.map((order) => (order.orderId === orderId ? response.order : order));
 			setOrders(nextOrders);
 			setDrafts(createDrafts(nextOrders));
-			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} mise Ã  jour.` });
+			setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} mise à jour.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
 		}
 	}
+
+async function deleteOrder(orderId) {
+if (!window.confirm('Supprimer cette commande d\u00e9finitivement ? Cette action est irr\u00e9versible.')) return;
+try {
+await deleteAdminOrder(orderId, token);
+const nextOrders = orders.filter((o) => o.orderId !== orderId);
+setOrders(nextOrders);
+setDrafts(createDrafts(nextOrders));
+setExpandedOrders((prev) => { const next = new Set(prev); next.delete(orderId); return next; });
+setStatus({ type: 'success', message: `Commande ${orderId.slice(0, 8)} supprim\u00e9e.` });
+} catch (error) {
+if (error.status === 401) { handleUnauthorized(); return; }
+setStatus({ type: 'error', message: error.message });
+}
+}
 
 	function startCardEdit(order) {
 		setCardEditing((prev) => ({
@@ -616,7 +632,7 @@ export function AdminView() {
 			setOrders(nextOrders);
 			setDrafts(createDrafts(nextOrders));
 			cancelCardEdit(orderId);
-			setStatus({ type: 'success', message: `Carte ${orderId.slice(0, 8)} mise Ã  jour.` });
+			setStatus({ type: 'success', message: `Carte ${orderId.slice(0, 8)} mise à jour.` });
 		} catch (error) {
 			if (error.status === 401) { handleUnauthorized(); return; }
 			setStatus({ type: 'error', message: error.message });
@@ -633,7 +649,7 @@ export function AdminView() {
 					<div className="admin-login-header">
 						<LogoMark />
 						<h1>Panneau Admin</h1>
-						<p>Connectez-vous pour accÃ©der au tableau de bord.</p>
+						<p>Connectez-vous pour accéder au tableau de bord.</p>
 					</div>
 					<form className="admin-login-form" onSubmit={handleLogin}>
 						<label className="admin-field">
@@ -679,10 +695,10 @@ export function AdminView() {
 				<div className="admin-header-actions">
 					<a href="/" className="admin-header-link">Studio</a>
 					<button type="button" className="admin-header-link" onClick={() => loadOrders(token)}>
-						<IconRefresh /> RafraÃ®chir
+						<IconRefresh /> Rafraîchir
 					</button>
 					<button type="button" className="admin-header-logout" onClick={handleLogout}>
-						<IconLogout /> DÃ©connexion
+						<IconLogout /> Déconnexion
 					</button>
 				</div>
 			</header>
@@ -695,7 +711,7 @@ export function AdminView() {
 						<strong className="admin-stat-value">{counts.total}</strong>
 					</div>
 					<div className="admin-stat-card">
-						<span className="admin-stat-label">PayÃ©es</span>
+						<span className="admin-stat-label">Payées</span>
 						<strong className="admin-stat-value admin-stat-green">{counts.paid ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
@@ -707,7 +723,7 @@ export function AdminView() {
 						<strong className="admin-stat-value admin-stat-blue">{counts['in-production'] ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
-						<span className="admin-stat-label">LivrÃ©es</span>
+						<span className="admin-stat-label">Livrées</span>
 						<strong className="admin-stat-value">{counts.delivered ?? 0}</strong>
 					</div>
 					<div className="admin-stat-card">
@@ -789,13 +805,13 @@ export function AdminView() {
 								<option value="">Tout statut</option>
 								<option value="submitted">Soumise</option>
 								<option value="in-production">En production</option>
-								<option value="ready">PrÃªte</option>
-								<option value="delivered">LivrÃ©e</option>
-								<option value="cancelled">AnnulÃ©e</option>
+								<option value="ready">Prête</option>
+								<option value="delivered">Livrée</option>
+								<option value="cancelled">Annulée</option>
 							</select>
 							{(searchQuery || filterPayment || filterOrder) && (
 								<button type="button" className="admin-filter-reset" onClick={() => { setSearchQuery(''); setFilterPayment(''); setFilterOrder(''); }}>
-									RÃ©initialiser
+									Réinitialiser
 								</button>
 							)}
 							<span className="admin-filter-count">{filteredOrders.length} / {orders.length}</span>
@@ -819,7 +835,7 @@ export function AdminView() {
 									deliveryNotes: order.deliveryNotes,
 								};
 								const isExpanded = expandedOrders.has(order.orderId);
-								const statusLabel = { submitted: 'Soumise', 'in-production': 'En production', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee' }[draft.orderStatus] || draft.orderStatus;
+								const statusLabel = { submitted: 'Soumise', 'in-production': 'En production', ready: 'Prête', delivered: 'Livrée', cancelled: 'Annulée' }[draft.orderStatus] || draft.orderStatus;
 
 								return (
 									<article key={order.orderId} className={`admin-order-card${isExpanded ? ' expanded' : ' collapsed'}`}>
@@ -830,7 +846,7 @@ export function AdminView() {
 												<div className="admin-order-summary-info">
 													<strong className="admin-order-summary-name">{order.profile?.fullName}</strong>
 													<span className="admin-order-summary-sub">
-														{order.profile?.role}{order.profile?.company ? ` Â· ${order.profile.company}` : ''}
+														{order.profile?.role}{order.profile?.company ? ` · ${order.profile.company}` : ''}
 													</span>
 												</div>
 											</div>
@@ -850,12 +866,20 @@ export function AdminView() {
 														className="admin-btn-deliver"
 														onClick={(e) => { e.stopPropagation(); markDelivered(order.orderId); }}
 													>
-														Marquer livree
+														Marquer livrée
 													</button>
 												)}
 												<span className="admin-order-summary-date">
 													{new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
 												</span>
+												<button
+												  type="button"
+												  className="admin-btn-delete"
+												  title="Supprimer la commande"
+												  onClick={(e) => { e.stopPropagation(); deleteOrder(order.orderId); }}
+												>
+												  ×
+												</button>
 												<span className={`admin-order-chevron${isExpanded ? ' open' : ''}`}>
 													<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
 												</span>
@@ -938,26 +962,26 @@ export function AdminView() {
 
 												{/* â”€â”€ DOWNLOAD ASSETS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 												<div className="admin-downloads">
-													<span className="admin-downloads-title">Telecharger pour impression</span>
+													<span className="admin-downloads-title">Télécharger pour impression</span>
 													<div className="admin-downloads-row">
 														{artworkUrl && (
-															<a className="admin-dl-btn" href={artworkUrl} download="artwork" title="Telecharger le visuel">
+															<a className="admin-dl-btn" href={artworkUrl} download="artwork" title="Télécharger le visuel">
 																Visuel recto
 															</a>
 														)}
 														{order.customization?.includeQr && order.finalCardUrl && (
-															<a className="admin-dl-btn" href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${encodeURIComponent(order.finalCardUrl)}`} download="qr-code.png" title="Telecharger le QR">
+															<a className="admin-dl-btn" href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${encodeURIComponent(order.finalCardUrl)}`} download="qr-code.png" title="Télécharger le QR">
 																QR Code
 															</a>
 														)}
 														{avatarUrl && (
-															<a className="admin-dl-btn" href={avatarUrl} download="photo-profil" title="Telecharger la photo">
+															<a className="admin-dl-btn" href={avatarUrl} download="photo-profil" title="Télécharger la photo">
 																Photo profil
 															</a>
 														)}
 														{order.paymentStatus === 'paid' && (
-															<a className="admin-dl-btn" href={`/api/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`} download title="Telecharger le recu PDF">
-																Recu PDF
+															<a className="admin-dl-btn" href={`/api/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`} download title="Télécharger le reçu PDF">
+																Reçu PDF
 															</a>
 														)}
 													</div>
@@ -1091,17 +1115,17 @@ export function AdminView() {
 														<select value={draft.orderStatus} onChange={(e) => updateDraft(order.orderId, 'orderStatus', e.target.value)}>
 															<option value="submitted">Soumise</option>
 															<option value="in-production">En production</option>
-															<option value="ready">Prete</option>
-															<option value="delivered">Livree</option>
-															<option value="cancelled">Annulee</option>
+															<option value="ready">Prête</option>
+															<option value="delivered">Livrée</option>
+															<option value="cancelled">Annulée</option>
 														</select>
 													</label>
 													<label className="admin-field">
 														<span>Statut paiement</span>
 														<select value={draft.paymentStatus} onChange={(e) => updateDraft(order.orderId, 'paymentStatus', e.target.value)}>
 															<option value="pending">En attente</option>
-															<option value="paid">Paye</option>
-															<option value="failed">Echoue</option>
+															<option value="paid">Payé</option>
+															<option value="failed">Échoué</option>
 															<option value="unknown">Inconnu</option>
 														</select>
 													</label>
@@ -1149,7 +1173,7 @@ export function AdminView() {
 																	const avatarFile = avatarInput?.files?.[0] ?? null;
 																	const logoFile = logoInput?.files?.[0] ?? null;
 																	if (!avatarFile && !logoFile) {
-																		setStatus({ type: 'error', message: 'Selectionnez au moins une photo.' });
+																		setStatus({ type: 'error', message: 'Sélectionnez au moins une photo.' });
 																		return;
 																	}
 																	try {
@@ -1160,7 +1184,7 @@ export function AdminView() {
 																		setDrafts(createDrafts(nextOrders));
 																		if (avatarInput) avatarInput.value = '';
 																		if (logoInput) logoInput.value = '';
-																		setStatus({ type: 'success', message: 'Photos mises a jour avec succes.' });
+																		setStatus({ type: 'success', message: 'Photos mises à jour avec succès.' });
 																	} catch (error) {
 																		if (error.status === 401) { handleUnauthorized(); return; }
 																		setStatus({ type: 'error', message: error.message });
@@ -1193,8 +1217,8 @@ export function AdminView() {
 																		setOrders(nextOrders);
 																		setDrafts(createDrafts(nextOrders));
 																		const msg = code
-																			? `Coupon ${code} applique -- remise ${formatMoney(result.discountAmount)}`
-																			: 'Coupon supprime';
+																			? `Coupon ${code} appliqué - remise ${formatMoney(result.discountAmount)}`
+																			: 'Coupon supprimé';
 																		setStatus({ type: 'success', message: msg });
 																	} catch (error) {
 																		if (error.status === 401) { handleUnauthorized(); return; }
@@ -1307,12 +1331,12 @@ export function AdminView() {
 															className="admin-btn-ghost"
 															onClick={async () => {
 																try {
-																	setStatus({ type: 'info', message: 'Generation du lien de paiement...' });
+																	setStatus({ type: 'info', message: 'Génération du lien de paiement...' });
 																	const result = await regeneratePaymentLink(order.orderId, token);
 																	const nextOrders = orders.map((o) => (o.orderId === order.orderId ? result.order : o));
 																	setOrders(nextOrders);
 																	setDrafts(createDrafts(nextOrders));
-																	setStatus({ type: 'success', message: `Nouveau lien genere. URL : ${result.paymentUrl}` });
+																	setStatus({ type: 'success', message: `Nouveau lien généré. URL : ${result.paymentUrl}` });
 																} catch (error) {
 																	if (error.status === 401) { handleUnauthorized(); return; }
 																	setStatus({ type: 'error', message: error.message });
@@ -1331,7 +1355,7 @@ export function AdminView() {
 															fetch(`/api/admin/orders/${encodeURIComponent(order.orderId)}/receipt.pdf`, {
 																headers: { 'x-admin-token': token },
 															})
-																.then((r) => { if (!r.ok) throw new Error('Erreur telechargement'); return r.blob(); })
+																.then((r) => { if (!r.ok) throw new Error('Erreur téléchargement'); return r.blob(); })
 																.then((blob) => {
 																	const url = URL.createObjectURL(blob);
 																	const a = document.createElement('a');
@@ -1340,14 +1364,14 @@ export function AdminView() {
 																	a.click();
 																	URL.revokeObjectURL(url);
 																})
-																.catch(() => setStatus({ type: 'error', message: 'Erreur telechargement recu.' }));
+																.catch(() => setStatus({ type: 'error', message: 'Erreur téléchargement reçu.' }));
 														}}
 													>
-														Recu PDF
+														Reçu PDF
 													</a>
 													{draft.orderStatus !== 'delivered' && draft.paymentStatus === 'paid' && (
 														<button type="button" className="admin-btn-deliver" onClick={() => markDelivered(order.orderId)}>
-															Marquer livree
+															Marquer livrée
 														</button>
 													)}
 													<button type="button" className="admin-btn-primary" onClick={() => saveOrder(order.orderId)}>
@@ -1367,11 +1391,11 @@ export function AdminView() {
 				{activeTab === 'inventory' && (
 					<div className="admin-inventory-section">
 						<p className="admin-inventory-desc">
-							DÃ©sactivez un matÃ©riau ou une dorure pour le griser sur le configurateur client.
+							Désactivez un matériau ou une dorure pour le griser sur le configurateur client.
 						</p>
 						<div className="admin-inv-grid">
 							<div className="admin-inv-group">
-								<h3>MatÃ©riaux</h3>
+								<h3>Matériaux</h3>
 								{Object.keys(materialCatalog).map((m) => {
 									const inv = inventory[`material:${m}`];
 									const inStock = inv ? inv.inStock : true;
@@ -1384,7 +1408,7 @@ export function AdminView() {
 												disabled={inventorySaving}
 												onClick={() => toggleInventory('material', m, inStock)}
 											>
-												{inStock ? 'En stock' : 'Ã‰puisÃ©'}
+												{inStock ? 'En stock' : 'Épuisé'}
 											</button>
 										</div>
 									);
@@ -1404,7 +1428,7 @@ export function AdminView() {
 												disabled={inventorySaving}
 												onClick={() => toggleInventory('foil', f, inStock)}
 											>
-												{inStock ? 'En stock' : 'Ã‰puisÃ©'}
+												{inStock ? 'En stock' : 'Épuisé'}
 											</button>
 										</div>
 									);
@@ -1418,7 +1442,7 @@ export function AdminView() {
 				{activeTab === 'coupons' && (
 					<div className="admin-coupons-section">
 						<form className="admin-coupon-form" onSubmit={handleCreateCoupon}>
-							<h3>CrÃ©er un coupon</h3>
+							<h3>Créer un coupon</h3>
 							<div className="admin-coupon-form-row">
 								<label className="admin-field">
 									<span>Code</span>
@@ -1449,7 +1473,7 @@ export function AdminView() {
 									/>
 								</label>
 								<label className="admin-field">
-									<span>Utilisations max (0 = illimitÃ©)</span>
+									<span>Utilisations max (0 = illimité)</span>
 									<input
 										type="number"
 										min="0"
@@ -1461,19 +1485,19 @@ export function AdminView() {
 							</div>
 							{couponError && <div className="admin-login-error">{couponError}</div>}
 							<button type="submit" className="admin-btn-primary" disabled={couponSaving}>
-								{couponSaving ? 'CrÃ©ation...' : 'CrÃ©er le coupon'}
+								{couponSaving ? 'Création...' : 'Créer le coupon'}
 							</button>
 						</form>
 
 						<div className="admin-coupon-list">
-							{coupons.length === 0 && <div className="admin-empty">Aucun coupon crÃ©Ã©.</div>}
+							{coupons.length === 0 && <div className="admin-empty">Aucun coupon créé.</div>}
 							{coupons.map((c) => (
 								<div key={c.code} className="admin-coupon-row">
 									<div className="admin-coupon-info">
 										<strong className="admin-coupon-code">{c.code}</strong>
 										<span className="admin-coupon-meta">
 											{c.discountType === 'percent' ? `${c.discountValue}%` : formatMoney(c.discountValue)}
-											{' Â· '}
+											{' · '}
 											{c.maxUses > 0 ? `${c.usedCount}/${c.maxUses} utilisations` : `${c.usedCount} utilisation${c.usedCount !== 1 ? 's' : ''}`}
 										</span>
 									</div>
@@ -1494,7 +1518,7 @@ export function AdminView() {
 				{/* â”€â”€ CEREMONIES TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 				{activeTab === 'ceremonies' && (
 					<div className="admin-orders-section">
-						{ceremonies.length === 0 && <div className="admin-empty">Aucune demande de cÃ©rÃ©monie.</div>}
+						{ceremonies.length === 0 && <div className="admin-empty">Aucune demande de cérémonie.</div>}
 						<div className="admin-orders-grid">
 							{ceremonies.map((c) => {
 								const draft = ceremonyDrafts[c.id] ?? { status: c.status, adminNotes: '' };
@@ -1505,13 +1529,13 @@ export function AdminView() {
 											<span className="admin-ceremony-type">{c.eventType}</span>
 										</div>
 										<div className="admin-ceremony-grid">
-											<div className="admin-ceremony-item"><span>TÃ©l</span><strong>{c.contactPhone}</strong></div>
+											<div className="admin-ceremony-item"><span>Tél</span><strong>{c.contactPhone}</strong></div>
 											{c.contactEmail && <div className="admin-ceremony-item"><span>Email</span><strong>{c.contactEmail}</strong></div>}
 											{c.company && <div className="admin-ceremony-item"><span>Entreprise</span><strong>{c.company}</strong></div>}
-											{c.eventName && <div className="admin-ceremony-item"><span>Ã‰vÃ©nement</span><strong>{c.eventName}</strong></div>}
+											{c.eventName && <div className="admin-ceremony-item"><span>Événement</span><strong>{c.eventName}</strong></div>}
 											{c.eventDate && <div className="admin-ceremony-item"><span>Date</span><strong>{c.eventDate}</strong></div>}
 											{c.eventCity && <div className="admin-ceremony-item"><span>Lieu</span><strong>{c.eventCity}</strong></div>}
-											{c.guestCount && <div className="admin-ceremony-item"><span>InvitÃ©s</span><strong>{c.guestCount}</strong></div>}
+											{c.guestCount && <div className="admin-ceremony-item"><span>Invités</span><strong>{c.guestCount}</strong></div>}
 											{c.budget && <div className="admin-ceremony-item"><span>Budget</span><strong>{c.budget}</strong></div>}
 										</div>
 										{c.services?.length > 0 && (
@@ -1528,15 +1552,15 @@ export function AdminView() {
 										<div className="admin-ceremony-status-row">
 											<select value={draft.status} onChange={(e) => setCeremonyDrafts((d) => ({ ...d, [c.id]: { ...d[c.id], status: e.target.value } }))}>
 												<option value="nouveau">Nouveau</option>
-												<option value="contacte">ContactÃ©</option>
-												<option value="devis_envoye">Devis envoyÃ©</option>
-												<option value="confirme">ConfirmÃ©</option>
-												<option value="termine">TerminÃ©</option>
-												<option value="annule">AnnulÃ©</option>
+												<option value="contacte">Contacté</option>
+												<option value="devis_envoye">Devis envoyé</option>
+												<option value="confirme">Confirmé</option>
+												<option value="termine">Terminé</option>
+												<option value="annule">Annulé</option>
 											</select>
 											<input
 												type="text"
-												placeholder="Notes adminâ€¦"
+												placeholder="Notes admin..."
 												value={draft.adminNotes}
 												onChange={(e) => setCeremonyDrafts((d) => ({ ...d, [c.id]: { ...d[c.id], adminNotes: e.target.value } }))}
 											/>
@@ -1562,10 +1586,10 @@ export function AdminView() {
 
 				{activeTab === 'invoices' && (
 					<div className="admin-section">
-						<h2>GÃ©nÃ©rer une Facture</h2>
+						<h2>Générer une Facture</h2>
 						{invoiceResult ? (
 							<div style={{ background: '#f0fff0', border: '1px solid #4caf50', borderRadius: '10px', padding: '1.5rem', marginTop: '1rem' }}>
-								<h3 style={{ color: '#2e7d32', marginBottom: '.8rem' }}>Facture generee -- {invoiceResult.invoiceId}</h3>
+								<h3 style={{ color: '#2e7d32', marginBottom: '.8rem' }}>Facture générée - {invoiceResult.invoiceId}</h3>
 								<p style={{ fontSize: '.9rem', marginBottom: '.6rem' }}>
 									<strong>Total :</strong> {new Intl.NumberFormat('fr-FR').format(invoiceResult.total)} FCFA
 								</p>
@@ -1593,7 +1617,7 @@ export function AdminView() {
 								)}
 								<div style={{ display: 'flex', gap: '.8rem', flexWrap: 'wrap' }}>
 									<button type="button" className="admin-btn-primary" onClick={downloadInvoicePdf}>
-										TÃ©lÃ©charger PDF
+										Télécharger PDF
 									</button>
 									<button type="button" className="admin-btn-secondary" onClick={resetInvoiceForm}>
 										Nouvelle facture
@@ -1614,7 +1638,7 @@ export function AdminView() {
 										/>
 									</div>
 									<div>
-										<label className="admin-label">TÃ©lÃ©phone</label>
+										<label className="admin-label">Téléphone</label>
 										<input
 											type="text"
 											className="admin-input"
@@ -1648,7 +1672,7 @@ export function AdminView() {
 											<input
 												type="number"
 												className="admin-input"
-												placeholder="QtÃ©"
+												placeholder="Qté"
 												min={1}
 												value={item.quantity}
 												onChange={(e) => { const newItems = [...invoiceItems]; newItems[idx] = { ...item, quantity: Number(e.target.value) || 1 }; setInvoiceItems(newItems); }}
@@ -1669,7 +1693,7 @@ export function AdminView() {
 													onClick={() => setInvoiceItems(invoiceItems.filter((_, i) => i !== idx))}
 													style={{ background: 'none', border: 'none', color: '#1a9d8f', cursor: 'pointer', fontWeight: 700, fontSize: '1.2rem' }}
 												>
-													Ã—
+													×
 												</button>
 											)}
 										</div>
@@ -1699,7 +1723,7 @@ export function AdminView() {
 
 								{invoiceError && <p style={{ color: '#1a9d8f', marginBottom: '.5rem' }}>{invoiceError}</p>}
 								<button type="submit" className="admin-btn-primary" disabled={invoiceSaving}>
-									{invoiceSaving ? 'GÃ©nÃ©rationâ€¦' : 'GÃ©nÃ©rer la facture'}
+									{invoiceSaving ? 'Génération...' : 'Générer la facture'}
 								</button>
 							</form>
 						)}
@@ -1723,7 +1747,7 @@ export function AdminView() {
 							))}
 						</div>
 						<button type="button" className="admin-header-link" onClick={() => loadAnalytics(token, analyticsPeriod)}>
-							<IconRefresh /> Rafraichir
+							<IconRefresh /> Rafraîchir
 						</button>
 					</div>
 
@@ -1784,11 +1808,11 @@ export function AdminView() {
 									<AnalyticsBarList items={analytics.browsers?.map((b) => ({ label: b.browser, visits: b.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title"><IconCpu /> Systemes (OS)</h3>
+									<h3 className="analytics-chart-title"><IconCpu /> Systèmes (OS)</h3>
 									<AnalyticsBarList items={analytics.os?.map((o) => ({ label: o.os, visits: o.visits }))} />
 								</div>
 								<div className="analytics-chart-card">
-									<h3 className="analytics-chart-title"><IconLink /> Referents</h3>
+									<h3 className="analytics-chart-title"><IconLink /> Référents</h3>
 									<AnalyticsBarList items={analytics.referrers?.map((r) => ({ label: r.referrer || 'Direct', visits: r.visits }))} />
 								</div>
 							</div>
@@ -1821,46 +1845,76 @@ export function AdminView() {
 					)}
 
 					{/* Recent visits raw table */}
-					{analyticsVisits.length > 0 && (
-						<div className="analytics-chart-card analytics-chart-full">
-							<h3 className="analytics-chart-title">Visites recentes ({analyticsVisits.length})</h3>
-							<div className="analytics-table-wrap">
-								<table className="analytics-table analytics-visits-table">
-									<thead>
-										<tr>
-											<th>Date</th>
-											<th>Page</th>
-											<th>Pays</th>
-											<th>Ville</th>
-											<th>Appareil</th>
-											<th>Navigateur</th>
-											<th>OS</th>
-											<th>Ecran</th>
-											<th>Referent</th>
-										</tr>
-									</thead>
-									<tbody>
-										{analyticsVisits.map((v, i) => (
-											<tr key={i}>
-												<td className="analytics-date-cell">{new Date(v.visitedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-												<td className="analytics-path-cell">{v.path}</td>
-												<td>{v.countryCode ? `${countryFlag(v.countryCode)} ${v.country}` : '---'}</td>
-												<td>{v.city || '---'}</td>
-												<td>{deviceLabel(v.deviceType)}</td>
-												<td>{v.browser || '---'}</td>
-												<td>{v.os || '---'}</td>
-												<td>{v.screen || '---'}</td>
-												<td>{v.referrer || 'Direct'}</td>
+					{analyticsVisits.length > 0 && (() => {
+						const cardVisits = analyticsVisits.filter((visit) => visit.kind === 'card');
+						const siteVisits = analyticsVisits.filter((visit) => visit.kind !== 'card');
+						const filteredVisits = visitKindFilter === 'card' ? cardVisits : siteVisits;
+
+						return (
+							<div className="analytics-chart-card analytics-chart-full">
+								<div className="analytics-visits-header">
+									<h3 className="analytics-chart-title">Visites récentes</h3>
+									<div className="analytics-period-bar">
+										<button
+											type="button"
+											className={`analytics-period-btn${visitKindFilter === 'card' ? ' active' : ''}`}
+											onClick={() => setVisitKindFilter('card')}
+										>
+											Cartes NFC ({cardVisits.length})
+										</button>
+										<button
+											type="button"
+											className={`analytics-period-btn${visitKindFilter === 'site' ? ' active' : ''}`}
+											onClick={() => setVisitKindFilter('site')}
+										>
+											Site web ({siteVisits.length})
+										</button>
+									</div>
+								</div>
+								<div className="analytics-table-wrap">
+									<table className="analytics-table analytics-visits-table">
+										<thead>
+											<tr>
+												<th>Date</th>
+												<th>Page</th>
+												<th>Pays</th>
+												<th>Ville</th>
+												<th>Appareil</th>
+												<th>Navigateur</th>
+												<th>OS</th>
+												<th>Écran</th>
+												<th>Référent</th>
 											</tr>
-										))}
-									</tbody>
-								</table>
+										</thead>
+										<tbody>
+											{filteredVisits.length === 0 ? (
+												<tr>
+													<td colSpan={9} style={{ textAlign: 'center', color: '#888', padding: '1rem' }}>
+														Aucune visite
+													</td>
+												</tr>
+											) : filteredVisits.map((v, i) => (
+												<tr key={i}>
+													<td className="analytics-date-cell">{new Date(v.visitedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+													<td className="analytics-path-cell">{v.path}</td>
+													<td>{v.countryCode ? `${countryFlag(v.countryCode)} ${v.country}` : '---'}</td>
+													<td>{v.city || '---'}</td>
+													<td>{deviceLabel(v.deviceType)}</td>
+													<td>{v.browser || '---'}</td>
+													<td>{v.os || '---'}</td>
+													<td>{v.screen || '---'}</td>
+													<td>{v.referrer || 'Direct'}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
 							</div>
-						</div>
-					)}
+						);
+					})()}
 
 					{!analyticsLoading && !analytics && (
-						<div className="admin-empty">Cliquez sur Rafraichir pour charger les analytics.</div>
+						<div className="admin-empty">Cliquez sur Rafraîchir pour charger les analytics.</div>
 					)}
 				</div>
 			)}

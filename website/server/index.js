@@ -863,6 +863,27 @@ app.patch(
   }),
 );
 
+// ── ADMIN: DELETE ORDER ─────────────────────────────────────────────
+app.delete(
+  '/api/admin/orders/:orderId',
+  requireAdmin,
+  asyncRoute(async (_request, response) => {
+    const { orderId } = _request.params;
+    const existingOrder = database.getOrderById(orderId);
+    if (!existingOrder) {
+      response.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+    // Delete any uploaded files for this order
+    const orderDir = path.join(uploadDir, orderId);
+    if (fs.existsSync(orderDir)) {
+      fs.rmSync(orderDir, { recursive: true, force: true });
+    }
+    database.deleteOrder(orderId);
+    response.json({ ok: true });
+  }),
+);
+
 // ── ADMIN: UPDATE CARD PROFILE & CUSTOMIZATION ──────────────────────
 app.patch(
   '/api/admin/orders/:orderId/card',
