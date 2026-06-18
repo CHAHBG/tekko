@@ -96,7 +96,7 @@ export function PaymentStateView({ variant }) {
     return (
       <div className="payment-state-shell">
         <div className="payment-state-card">
-          <span className="eyebrow">Tapal Checkout</span>
+          <span className="eyebrow">TEKKO Checkout</span>
           <h1>Paiement annulé</h1>
           <p>La commande est bien enregistrée. Vous pouvez retourner au formulaire et relancer le paiement quand vous êtes prêt·e.</p>
           <a href="/" className="primary-button inline-link">Retour au Studio</a>
@@ -108,7 +108,7 @@ export function PaymentStateView({ variant }) {
   return (
     <div className="payment-state-shell">
       <div className="payment-state-card">
-        <span className="eyebrow">Tapal · Paiement</span>
+        <span className="eyebrow">TEKKO · Paiement</span>
         {phase === 'verifying' && (
           <>
             <h1>Paiement reçu ✓</h1>

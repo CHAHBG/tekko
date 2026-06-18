@@ -238,7 +238,7 @@ export const defaultCustomization = {
   qrPosition: 'center',
   qrSize: 'medium',
   backsideMessage: 'Tap, scan, connect.',
-  cardLabel: 'Tapal Signature',
+  cardLabel: 'TEKKO Signature',
   textColor: '',
   bgColor: '',
   fontStyle: 'moderne',
@@ -367,7 +367,7 @@ export function buildOrderBrief({
   const displayPrice = totalPrice ?? packageSelection?.price;
   const sep = '-';
   const lines = [
-    `*Nouvelle commande Tapal Studio*`,
+    `*Nouvelle commande TEKKO Studio*`,
     ``,
     `*Client*`,
     `Nom : ${profile.fullName || sep}`,

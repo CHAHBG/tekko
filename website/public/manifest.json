@@ -1,6 +1,6 @@
 {
-  "name": "Tapal Studio — Carte de visite NFC",
-  "short_name": "Tapal",
+  "name": "TEKKO Studio — Carte de visite NFC",
+  "short_name": "TEKKO",
   "description": "Créez et commandez votre carte de visite NFC connectée en quelques minutes.",
   "start_url": "/",
   "display": "standalone",

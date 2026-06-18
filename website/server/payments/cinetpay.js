@@ -25,7 +25,7 @@ function sanitizeDescription(text) {
 
 function makeCustomerSurname(fullName) {
   const parts = String(fullName ?? '').trim().split(/\s+/).filter(Boolean);
-  return parts.slice(1).join(' ') || parts[0] || 'Tapal';
+  return parts.slice(1).join(' ') || parts[0] || 'TEKKO';
 }
 
 export function isCinetPayConfigured(environment = process.env) {
@@ -53,7 +53,7 @@ export async function initializeCinetPayCheckout({ order, environment = process.
     transaction_id: transactionId,
     amount: Number(order.packPrice),
     currency: order.currency,
-    description: sanitizeDescription(`Tapal ${order.packageSelection.name ?? order.packKey} package`),
+    description: sanitizeDescription(`TEKKO ${order.packageSelection.name ?? order.packKey} package`),
     notify_url: environment.CINETPAY_NOTIFY_URL,
     return_url: environment.CINETPAY_RETURN_URL,
     channels: 'ALL',
@@ -81,7 +81,7 @@ export async function initializeCinetPayCheckout({ order, environment = process.
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'User-Agent': 'Tapal/1.0 (+https://tapal.geochifa.com)',
+      'User-Agent': 'TEKKO/1.0 (+https://tapal.geochifa.com)',
     },
     body: JSON.stringify(payload),
   });

@@ -9,8 +9,8 @@ const translations = {
     'nav.ceremonies': 'Cérémonies',
 
     // Builder
-    'builder.title': 'Tapal Studio',
-    'builder.onboarding.welcome': 'Bienvenue sur Tapal Studio',
+    'builder.title': 'TEKKO Studio',
+    'builder.onboarding.welcome': 'Bienvenue sur TEKKO Studio',
     'builder.onboarding.step1': 'Choisissez un thème',
     'builder.onboarding.step1desc': 'Sélectionnez le thème qui correspond à votre marque personnelle.',
     'builder.onboarding.step2': 'Remplissez votre profil',
@@ -49,7 +49,7 @@ const translations = {
     'checkout.total': 'Total',
 
     // Order portal
-    'portal.title': 'Ma commande · Tapal',
+    'portal.title': 'Ma commande · TEKKO',
     'portal.greeting': 'Bonjour',
     'portal.order': 'Commande',
     'portal.payment': 'Paiement',
@@ -95,8 +95,8 @@ const translations = {
     'nav.turnkey': 'Turnkey',
     'nav.ceremonies': 'Ceremonies',
 
-    'builder.title': 'Tapal Studio',
-    'builder.onboarding.welcome': 'Welcome to Tapal Studio',
+    'builder.title': 'TEKKO Studio',
+    'builder.onboarding.welcome': 'Welcome to TEKKO Studio',
     'builder.onboarding.step1': 'Choose a theme',
     'builder.onboarding.step1desc': 'Select the theme that matches your personal brand.',
     'builder.onboarding.step2': 'Fill in your profile',
@@ -132,7 +132,7 @@ const translations = {
     'checkout.pay': 'Proceed to payment',
     'checkout.total': 'Total',
 
-    'portal.title': 'My order · Tapal',
+    'portal.title': 'My order · TEKKO',
     'portal.greeting': 'Hello',
     'portal.order': 'Order',
     'portal.payment': 'Payment',
@@ -174,8 +174,8 @@ const translations = {
     'nav.turnkey': 'Bu fexee',
     'nav.ceremonies': 'Tééré yi',
 
-    'builder.title': 'Tapal Studio',
-    'builder.onboarding.welcome': 'Dalal jàmm ci Tapal Studio',
+    'builder.title': 'TEKKO Studio',
+    'builder.onboarding.welcome': 'Dalal jàmm ci TEKKO Studio',
     'builder.onboarding.step1': 'Tànnal ag thème',
     'builder.onboarding.step1desc': 'Tànnal thème bi mu wàcc sa marque.',
     'builder.onboarding.step2': 'Laalal sa profil',

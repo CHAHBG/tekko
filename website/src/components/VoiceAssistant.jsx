@@ -41,10 +41,10 @@ const OPTIONAL = new Set(['company', 'email', 'images']);
 const REQUIRED = new Set(['fullName', 'phone', 'role', 'packKey']);
 
 const FIRST_PROMPTS = {
-  fr: "Bonjour ! Je suis l'assistant Tapal. Quel est votre nom complet ?",
-  en: "Hello! I'm the Tapal assistant. What is your full name?",
-  wo: "Asalaamaalekum! Maa ngi la nuyu. Man laa Tapal. Na nga tudd?",
-  pu: "Jam waali! Ko Tapal woni ɗoo. Hol innde maa?",
+  fr: "Bonjour ! Je suis l'assistant TEKKO. Quel est votre nom complet ?",
+  en: "Hello! I'm the TEKKO assistant. What is your full name?",
+  wo: "Asalaamaalekum! Maa ngi la nuyu. Man laa TEKKO. Na nga tudd?",
+  pu: "Jam waali! Ko TEKKO woni ɗoo. Hol innde maa?",
 };
 
 const NEXT_PROMPTS = {
@@ -468,7 +468,7 @@ export default function VoiceAssistant({ isOpen, onClose }) {
           foil: 'No foil',
           fontStyle: 'moderne',
           layout: 'classic',
-          label: 'Tapal Signature',
+          label: 'TEKKO Signature',
         },
         orderContact: {
           name: data.fullName,
@@ -753,7 +753,7 @@ export default function VoiceAssistant({ isOpen, onClose }) {
 
         {/* Header */}
         <div className="voice-header">
-          <span className="voice-brand">🎤 Tapal Voice</span>
+          <span className="voice-brand">🎤 TEKKO Voice</span>
           <button type="button" className="voice-close" onClick={handleClose} aria-label="Fermer">✕</button>
         </div>
 

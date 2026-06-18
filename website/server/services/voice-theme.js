@@ -1,6 +1,6 @@
 /**
  * Theme suggestion heuristic — zero LLM cost.
- * Maps role/company keywords to the 4 Tapal themes.
+ * Maps role/company keywords to the 4 TEKKO themes.
  */
 
 const THEME_RULES = [

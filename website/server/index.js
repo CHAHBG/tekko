@@ -1383,7 +1383,7 @@ app.post(
       const isTimeout = err.message === 'Groq API timeout';
       response.status(isTimeout ? 504 : 500).json({
         error: isTimeout
-          ? "L'assistant Tapal ne répond pas. Réessai automatique..."
+          ? "L'assistant TEKKO ne répond pas. Réessai automatique..."
           : 'Erreur de reconnaissance vocale. Veuillez réessayer.',
         retry: true,
       });
@@ -1511,12 +1511,12 @@ app.post(
 app.get('/share/:slug', (request, response) => {
   const order = database.getOrderBySlug(request.params.slug);
   if (!order || order.paymentStatus !== 'paid') {
-    response.status(404).type('html').send('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Tapal</title></head><body><p>Carte introuvable.</p></body></html>');
+    response.status(404).type('html').send('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>TEKKO</title></head><body><p>Carte introuvable.</p></body></html>');
     return;
   }
   const profile = order.profile || {};
-  const title = escapeHtmlAttr(profile.fullName || 'Carte Tapal');
-  const desc = escapeHtmlAttr(profile.role || profile.company || 'Carte de visite numerique Tapal.');
+  const title = escapeHtmlAttr(profile.fullName || 'Carte TEKKO');
+  const desc = escapeHtmlAttr(profile.role || profile.company || 'Carte de visite numerique TEKKO.');
   const host = request.get('host') || 'localhost';
   const proto = (request.headers['x-forwarded-proto'] || request.protocol || 'https').split(',')[0].trim();
   const cardPath = `/c/${encodeURIComponent(order.slug)}`;
@@ -1582,7 +1582,7 @@ app.use((error, request, response, _next) => {
 });
 
 app.listen(serverPort, () => {
-  console.log(`Tapal server listening on http://localhost:${serverPort}`);
+  console.log(`TEKKO server listening on http://localhost:${serverPort}`);
 });
 
 // ── CLEANUP CRON — purge draft orders that never started checkout ────

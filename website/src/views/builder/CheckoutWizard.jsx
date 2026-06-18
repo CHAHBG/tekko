@@ -27,6 +27,10 @@ export function PhysicalCardMock({ customization, assets, activeAccent, cardSurf
   const hasRole = !!(profile.role);
   const hasQr = !!(customization.includeQr);
   const hasBackMsg = !!(customization.backsideMessage?.trim());
+  const cardHost = (() => {
+    try { return new URL(customization.publicCardUrl).hostname.replace(/^www\./, ''); }
+    catch { return 'tapal.geochifa.com'; }
+  })();
 
   const positionMap = {
     'top-left': { top: '8%', left: '7%' },
@@ -114,7 +118,7 @@ export function PhysicalCardMock({ customization, assets, activeAccent, cardSurf
                 />
               )}
               {hasBackMsg && <p className="pcard-back-msg">{customization.backsideMessage}</p>}
-              <p className="pcard-back-url">tapal.geochifa.com</p>
+              <p className="pcard-back-url">{cardHost}</p>
             </div>
           </div>
         </div>
@@ -561,13 +565,16 @@ export function CheckoutWizard({
                       <strong>{submitState.message}</strong>
                     </div>
                   )}
+                  <p className="toolbar-note" style={{ marginBottom: '0.6rem', lineHeight: 1.5 }}>
+                    🛵 <strong>Pas besoin de payer en ligne.</strong> Commandez via WhatsApp et payez <strong>à la livraison</strong> (espèces ou Wave) à Dakar et en banlieue. Vous préférez régler tout de suite ? Payez en ligne avec Wave.
+                  </p>
                   <div className="action-strip">
                     <a className="whatsapp-btn" href={whatsAppUrl} target="_blank" rel="noreferrer">
                       <WhatsAppIcon />
-                      WhatsApp
+                      Commander — payer à la livraison
                     </a>
                     <button type="button" className="wave-pay-btn" onClick={onValidate} disabled={isDomainSubmitBlocked}>
-                      Valider ma commande
+                      Payer en ligne (Wave)
                     </button>
                   </div>
                 </>

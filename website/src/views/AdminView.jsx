@@ -1044,7 +1044,7 @@ setStatus({ type: 'error', message: error.message });
 													{order.customization?.fontStyle && order.customization.fontStyle !== 'moderne' && (
 														<span className="admin-spec-tag admin-spec-font">Police : {order.customization.fontStyle}</span>
 													)}
-													{order.customization?.cardLabel && order.customization.cardLabel !== 'Tapal Signature' && (
+													{order.customization?.cardLabel && order.customization.cardLabel !== 'TEKKO Signature' && (
 														<span className="admin-spec-tag">Label : {order.customization.cardLabel}</span>
 													)}
 												</div>

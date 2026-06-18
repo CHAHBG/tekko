@@ -16,7 +16,7 @@ const CUSTOMIZATION_FIELD_META = {
     key: 'cardLabel',
     label: 'Label carte',
     type: 'text',
-    placeholder: 'Tapal Signature',
+    placeholder: 'TEKKO Signature',
   },
 };
 

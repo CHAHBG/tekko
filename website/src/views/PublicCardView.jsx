@@ -167,7 +167,7 @@ export function PublicCardView({ slug }) {
 				if (isMounted) {
 					setState({ loading: false, error: '', errorKind: '', card: response.card });
 					const name = response.card?.profile?.fullName;
-					if (name) document.title = `${name} · Tapal`;
+					if (name) document.title = `${name} · TEKKO`;
 				}
 			})
 			.catch((error) => {

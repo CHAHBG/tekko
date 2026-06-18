@@ -6,10 +6,10 @@ import { packCatalog } from '../lib/catalog';
 const SILENCE_TIMEOUT_MS = 1800;
 
 const FIRST_PROMPTS = {
-  fr: 'Bonjour ! Je suis l\'assistant Tapal. Quel est votre nom complet ?',
-  en: 'Hello! I\'m the Tapal assistant. What is your full name?',
-  wo: 'Bonjour ! Tapal assistant bi laa. Nanga def ? Na nga tudd ?',
-  pu: 'Bonjour ! Mi woni Tapal assistant. Hol innde maa mon ?',
+  fr: 'Bonjour ! Je suis l\'assistant TEKKO. Quel est votre nom complet ?',
+  en: 'Hello! I\'m the TEKKO assistant. What is your full name?',
+  wo: 'Bonjour ! TEKKO assistant bi laa. Nanga def ? Na nga tudd ?',
+  pu: 'Bonjour ! Mi woni TEKKO assistant. Hol innde maa mon ?',
 };
 
 const FIELD_ORDER = ['fullName', 'phone', 'role', 'company', 'email', 'packKey'];
@@ -168,7 +168,7 @@ export function useVoiceAssistant() {
           foil: 'No foil',
           fontStyle: 'moderne',
           layout: 'classic',
-          label: 'Tapal Signature',
+          label: 'TEKKO Signature',
         },
         orderContact: {
           name: data.fullName,

@@ -406,19 +406,19 @@ function AssetField({ title, asset, onFileChange, onRemoteChange, onAdjust, rota
 const NFC_PHONES = [
   {
     key: 'iphone-new', label: 'iPhone XS / XR ou plus recent', icon: '🍎',
-    steps: ['Le NFC est toujours actif — aucune activation necessaire.', 'Approchez la carte Tapal du haut arriere de votre iPhone (pres de la camera).', 'La page de votre carte s\'ouvre automatiquement dans Safari.'],
+    steps: ['Le NFC est toujours actif — aucune activation necessaire.', 'Approchez la carte TEKKO du haut arriere de votre iPhone (pres de la camera).', 'La page de votre carte s\'ouvre automatiquement dans Safari.'],
     tip: null,
     placement: 'En haut au dos du telephone, pres de la camera.',
   },
   {
     key: 'iphone-old', label: 'iPhone 7 / 8 / X', icon: '🍎',
-    steps: ['Ouvrez le Centre de controle (glissez depuis le coin superieur droit).', 'Appuyez sur l\'icone NFC (rectangle avec des ondes).', 'Approchez la carte Tapal du haut arriere de l\'iPhone.'],
+    steps: ['Ouvrez le Centre de controle (glissez depuis le coin superieur droit).', 'Appuyez sur l\'icone NFC (rectangle avec des ondes).', 'Approchez la carte TEKKO du haut arriere de l\'iPhone.'],
     tip: 'Si l\'icone NFC n\'apparait pas : Reglages → Centre de controle → ajoutez « Lecteur de tags NFC ».',
     placement: 'En haut au dos du telephone, pres de la camera.',
   },
   {
     key: 'iphone-6', label: 'iPhone 6 et moins', icon: '🍎',
-    steps: ['Le NFC n\'est pas supporte pour la lecture sur ces modeles.', 'Utilisez le QR code au verso de votre carte Tapal a la place.', 'Ouvrez l\'appareil photo et pointez vers le QR code.'],
+    steps: ['Le NFC n\'est pas supporte pour la lecture sur ces modeles.', 'Utilisez le QR code au verso de votre carte TEKKO a la place.', 'Ouvrez l\'appareil photo et pointez vers le QR code.'],
     tip: null,
     placement: null,
   },
@@ -717,7 +717,7 @@ export function BuilderView() {
     else if (bambaQty >= 5) totalQtyPrice = Math.round(totalQtyPrice * 0.80);
     else if (bambaQty >= 3) totalQtyPrice = Math.round(totalQtyPrice * 0.90);
     const lines = [
-      `*Commande Cle en main - Tapal*`,
+      `*Commande Cle en main - TEKKO*`,
       ``,
       `Nom : ${profile.fullName}`,
       `WhatsApp : ${profile.phone}`,
@@ -1515,7 +1515,7 @@ export function BuilderView() {
       {/* ── TOPBAR ─────────────────────────────────────────────────── */}
       <header className="topbar">
         <div className="topbar-brand">
-          <span className="brand-pill">Tapal</span>
+          <span className="brand-pill">TEKKO</span>
           <span className="brand-label">Studio</span>
         </div>
         <div className="mode-tabs">

@@ -21,9 +21,9 @@ function App() {
     if (currentPath.startsWith('/admin')) {
       document.title = 'Tekko · Admin';
     } else if (currentPath.startsWith('/payment/')) {
-      document.title = 'Paiement · Tapal';
+      document.title = 'Paiement · TEKKO';
     } else if (!currentPath.startsWith('/c/')) {
-      document.title = 'Tapal Studio';
+      document.title = 'TEKKO Studio';
     }
     // PublicCardView sets its own title when the card loads
   }, [currentPath]);

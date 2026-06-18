@@ -52,7 +52,7 @@ export function OrderPortalView() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    document.title = 'Ma commande · Tapal';
+    document.title = 'Ma commande · TEKKO';
   }, []);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export function OrderPortalView() {
     return (
       <div className="order-portal-shell">
         <div className="order-portal-card order-portal-card--error">
-          <span className="eyebrow">Tapal</span>
+          <span className="eyebrow">TEKKO</span>
           <h1>Commande</h1>
           <p>{error || 'Donnees indisponibles.'}</p>
           <a href="/" className="primary-button inline-link">Retour au Studio</a>
@@ -116,7 +116,7 @@ export function OrderPortalView() {
   return (
     <div className="order-portal-shell">
       <div className="order-portal-card">
-        <span className="eyebrow">Tapal · Suivi</span>
+        <span className="eyebrow">TEKKO · Suivi</span>
         <h1>Bonjour{portal.customerName ? `, ${portal.customerName}` : ''}</h1>
         <p className="order-portal-meta">
           Commande <strong>{portal.orderId.slice(0, 8)}</strong> · {portal.packName}
