@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { CardRenderer, displayWebsite, fontStyleMap } from '../CardRenderer';
 
 /*
@@ -176,21 +176,65 @@ export function CardCanvas({
     ? null
     : { onEditField, onEditImage, attachGesture, showEditHints };
 
+  // Scale the studio card down so the WHOLE card fits in the visible area
+  // (between the top of the stage and the floating toolbar) — no inner scroll,
+  // nothing cut off. The published card itself is never scaled.
+  const fitRef = useRef(null);
+  const pageRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [fitHeight, setFitHeight] = useState(null);
+
+  useLayoutEffect(() => {
+    if (readOnly) return undefined;
+    const fitEl = fitRef.current;
+    const page = pageRef.current;
+    if (!fitEl || !page) return undefined;
+    const recompute = () => {
+      const naturalH = page.offsetHeight; // layout height, unaffected by transform
+      if (!naturalH) return;
+      const top = fitEl.getBoundingClientRect().top;
+      const dock = document.querySelector('.floating-toolbar');
+      const bottom = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+      const avail = bottom - top - 16;
+      const next = Math.max(0.5, Math.min(1, avail / naturalH));
+      setScale(next);
+      setFitHeight(naturalH * next);
+    };
+    recompute();
+    const observer = new ResizeObserver(recompute);
+    observer.observe(page);
+    window.addEventListener('resize', recompute);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', recompute);
+    };
+  }, [readOnly]);
+
   return (
-    <div className={`ecard-page ecard-page--embedded ecard-page--${cardLayout}`} style={cssVars}>
-      <CardRenderer
-        profile={profile}
-        customization={customization}
-        assets={assets}
-        accent={activeAccent}
-        highlight={highlight}
-        layout={cardLayout}
-        initials={initials}
-        qrUrl={qrUrl}
-        qrTarget={qrTarget}
-        cardUrl={cardUrl}
-        edit={edit}
-      />
+    <div
+      className="ecard-fit"
+      ref={fitRef}
+      style={!readOnly && fitHeight != null ? { height: fitHeight, overflow: 'hidden' } : undefined}
+    >
+      <div
+        className={`ecard-page ecard-page--embedded ecard-page--${cardLayout}`}
+        ref={pageRef}
+        style={!readOnly ? { ...cssVars, transform: `scale(${scale})`, transformOrigin: 'top center' } : cssVars}
+      >
+        <CardRenderer
+          profile={profile}
+          customization={customization}
+          assets={assets}
+          accent={activeAccent}
+          highlight={highlight}
+          layout={cardLayout}
+          initials={initials}
+          qrUrl={qrUrl}
+          qrTarget={qrTarget}
+          cardUrl={cardUrl}
+          edit={edit}
+        />
+      </div>
     </div>
   );
 }

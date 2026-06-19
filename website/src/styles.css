@@ -4549,6 +4549,13 @@ a { color: inherit; text-decoration: none; }
   padding: 0;
   width: 100%;
 }
+/* Wrapper that clamps the scaled studio card so it occupies only its scaled
+   height (the card is scaled via transform in CardCanvas to fit the screen). */
+.ecard-fit {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
 .ecard-loading, .ecard-error {
   color: #888;
   font-size: .9rem;
