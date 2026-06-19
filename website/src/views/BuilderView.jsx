@@ -1324,7 +1324,7 @@ export function BuilderView() {
                       className={`theme-chip${activeThemeKey === key ? ' active' : ''}`}
                       onClick={() => {
                         setAutoStyle(false);
-                        updateCustomization('themeKey', key);
+                        setCustomization((c) => ({ ...c, themeKey: key, accent: theme.accent }));
                       }}
                     >
                       <span className="theme-dot" style={{ background: theme.accent }} />
