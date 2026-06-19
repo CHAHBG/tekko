@@ -677,11 +677,8 @@ export function CheckoutWizard({
                 finalCardUrl={finalCardUrl}
                 initials={initials}
                 activeSocials={activeSocials}
-                onEditField={() => {}}
-                onEditImage={() => {}}
-                onAdjustAsset={() => {}}
                 showEditHints={false}
-                noPhone={true}
+                readOnly={true}
               />
             </div>
             {/* Physical card — right of phone */}

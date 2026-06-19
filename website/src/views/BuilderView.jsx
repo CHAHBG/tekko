@@ -1081,7 +1081,6 @@ export function BuilderView() {
     { key: 'grid', label: 'Grille', thumb: 'gr' },
     { key: 'elegant', label: 'Elegant', thumb: 'el' },
     { key: 'gradient', label: 'Gradient', thumb: 'gd' },
-    { key: 'custom', label: 'Sur mesure', thumb: 'cu' },
   ];
   const fontOptions = [
     { key: 'moderne', label: 'Moderne', sample: 'Aa' },
@@ -1308,53 +1307,8 @@ export function BuilderView() {
               </div>
 
               <p className="toolbar-note">
-                La couverture n'apparait que sur les layouts Banner, Split, Gradient et Sur mesure.
+                La couverture (image de fond) s'utilise sur le layout Banniere.
               </p>
-
-              {cardLayout === 'custom' && (
-                <div className="custom-layout-panel">
-                  <div className="custom-layout-banner">
-                    <span>Notre studio creera un layout unique selon vos instructions.</span>
-                  </div>
-                  <label className="field">
-                    <span>Decrivez le layout souhaite</span>
-                    <textarea
-                      rows="4"
-                      value={customization.customLayoutDescription ?? ''}
-                      placeholder="Ex : photo en plein fond avec nom en bas, couleurs turquoise et blanc, style minimaliste luxe..."
-                      onChange={(event) => updateCustomization('customLayoutDescription', event.target.value)}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>URL de reference (optionnel)</span>
-                    <input
-                      type="url"
-                      value={customization.customLayoutRefUrl ?? ''}
-                      placeholder="https://exemple.com/design-ref"
-                      onChange={(event) => updateCustomization('customLayoutRefUrl', event.target.value)}
-                    />
-                  </label>
-                  <label className="field upload-field">
-                    <span>Image de reference (optionnel)</span>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        if (customRefPreview?.startsWith('blob:')) URL.revokeObjectURL(customRefPreview);
-                        setCustomRefFile(file);
-                        setCustomRefPreview(file ? URL.createObjectURL(file) : '');
-                      }}
-                    />
-                  </label>
-                  {customRefPreview && (
-                    <div className="custom-ref-preview">
-                      <span>Apercu reference</span>
-                      <img src={customRefPreview} alt="Reference design" />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -1708,10 +1662,8 @@ export function BuilderView() {
                   finalCardUrl={finalCardUrl}
                   initials={initials}
                   activeSocials={activeSocials}
-                  onEditField={() => {}}
-                  onEditImage={() => {}}
-                  onAdjustAsset={() => {}}
                   showEditHints={false}
+                  readOnly={true}
                 />
               </div>
             </section>
@@ -1746,6 +1698,7 @@ export function BuilderView() {
                 onEditImage={handleEditImage}
                 onAdjustAsset={adjustAsset}
                 showEditHints={showEditHints}
+                qrUrl={previewQrUrl}
               />
               <PhysicalCardMock
                 customization={customization}
