@@ -55,22 +55,22 @@ const packageCatalog = {
   starter: {
     key: 'starter',
     name: 'Starter',
-    price: 15000,
+    price: 7500,
     quantity: 1,
     leadTime: '72h',
   },
   pro: {
     key: 'pro',
     name: 'Pro',
-    price: 22500,
+    price: 11250,
     quantity: 1,
     leadTime: '48h',
   },
   business: {
     key: 'business',
     name: 'Business',
-    price: 114750,
-    perCardBase: 27000,
+    price: 38813,
+    perCardBase: 7763,
     quantity: 5,
     leadTime: '5 days',
   },
@@ -439,8 +439,8 @@ app.post(
     // ── Server-side price computation (ignore client totalPrice) ──
     const packInfo = packageCatalog[order.packKey] ?? packageCatalog.pro;
     const customization = order.customization ?? {};
-    const materialAdds = { 'Brushed metal': 20000 };
-    const foilAdds = { 'Gold foil': 5000, 'Silver foil': 5000, 'Copper foil': 5000 };
+    const materialAdds = { 'Brushed metal': 10000 };
+    const foilAdds = { 'Gold foil': 2500, 'Silver foil': 2500, 'Copper foil': 2500 };
     let totalPrice = packInfo.price
       + (materialAdds[customization.material] ?? 0)
       + (foilAdds[customization.foil] ?? 0);
@@ -936,8 +936,8 @@ app.post(
     // Compute base price
     const packInfo = packageCatalog[order.packKey] ?? packageCatalog.pro;
     const customization = order.customization ?? {};
-    const materialAdds = { 'Brushed metal': 20000 };
-    const foilAdds = { 'Gold foil': 5000, 'Silver foil': 5000, 'Copper foil': 5000 };
+    const materialAdds = { 'Brushed metal': 10000 };
+    const foilAdds = { 'Gold foil': 2500, 'Silver foil': 2500, 'Copper foil': 2500 };
     const basePrice = packInfo.price
       + (materialAdds[customization.material] ?? 0)
       + (foilAdds[customization.foil] ?? 0);
@@ -1017,8 +1017,8 @@ app.post(
     // Recompute total price server-side
     const packInfo = packageCatalog[order.packKey] ?? packageCatalog.pro;
     const customization = order.customization ?? {};
-    const materialAdds = { 'Brushed metal': 20000 };
-    const foilAdds = { 'Gold foil': 5000, 'Silver foil': 5000, 'Copper foil': 5000 };
+    const materialAdds = { 'Brushed metal': 10000 };
+    const foilAdds = { 'Gold foil': 2500, 'Silver foil': 2500, 'Copper foil': 2500 };
     let totalPrice = packInfo.price
       + (materialAdds[customization.material] ?? 0)
       + (foilAdds[customization.foil] ?? 0);

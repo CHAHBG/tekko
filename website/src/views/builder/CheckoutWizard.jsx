@@ -517,8 +517,8 @@ export function CheckoutWizard({
               )}
               <div className="price-table" style={{ marginTop: '0.85rem' }}>
                 <div className="price-row"><span>Pack {packageSelection.name}</span><strong>{formatMoney(packageSelection.price)}</strong></div>
-                {customization.material === 'Brushed metal' && <div className="price-row"><span>+ Metal brosse</span><strong>{formatMoney(20000)}</strong></div>}
-                {customization.foil !== 'No foil' && <div className="price-row"><span>+ Dorure {customization.foil.replace(' foil', '')}</span><strong>{formatMoney(5000)}</strong></div>}
+                {customization.material === 'Brushed metal' && <div className="price-row"><span>+ Metal brosse</span><strong>{formatMoney(10000)}</strong></div>}
+                {customization.foil !== 'No foil' && <div className="price-row"><span>+ Dorure {customization.foil.replace(' foil', '')}</span><strong>{formatMoney(2500)}</strong></div>}
                 {discountAmount > 0 && (
                   <div className="price-row price-row-discount">
                     <span>Coupon {appliedCoupon.code}</span>

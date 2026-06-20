@@ -168,16 +168,16 @@ export const foilCatalog = {
 // Price add-ons on top of the selected pack base price
 export const materialPriceAdds = {
   'Soft touch PVC': 0,
-  'Brushed metal': 20000,
+  'Brushed metal': 10000,
   'Frosted black': 0,
   'Pearl white': 0,
 };
 
 export const foilPriceAdds = {
   'No foil': 0,
-  'Gold foil': 5000,
-  'Silver foil': 5000,
-  'Copper foil': 5000,
+  'Gold foil': 2500,
+  'Silver foil': 2500,
+  'Copper foil': 2500,
 };
 
 // Replace with your studio WhatsApp number (international format, no + or spaces)
@@ -195,14 +195,14 @@ export function buildWhatsAppUrl(brief, phone = WHATSAPP_STUDIO_NUMBER) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(brief)}`;
 }
 
-const PRO_PACK_PRICE = 22500;
+const PRO_PACK_PRICE = 11250;
 const BUSINESS_PACK_PRICE = Math.round(PRO_PACK_PRICE * 3 * 1.15);
 
 export const packCatalog = {
   starter: {
     key: 'starter',
     name: 'Starter',
-    price: 15000,
+    price: 7500,
     quantity: 1,
     caption: '1 carte NFC avec profil digital personnalisé.',
   },
