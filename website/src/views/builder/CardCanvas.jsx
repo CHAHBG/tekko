@@ -195,8 +195,11 @@ export function CardCanvas({
       const top = fitEl.getBoundingClientRect().top;
       const dock = document.querySelector('.floating-toolbar');
       const bottom = dock ? dock.getBoundingClientRect().top : window.innerHeight;
-      const avail = bottom - top - 16;
-      const next = Math.max(0.5, Math.min(1, avail / naturalH));
+      const avail = bottom - top - 20; // small gap above the floating toolbar
+      if (avail <= 0) return;
+      // Shrink as much as needed so the WHOLE card fits (floor only guards
+      // against a degenerate measurement — never lets the card stay clipped).
+      const next = Math.max(0.3, Math.min(1, avail / naturalH));
       setScale(next);
       setFitHeight(naturalH * next);
     };
@@ -204,11 +207,14 @@ export function CardCanvas({
     const observer = new ResizeObserver(recompute);
     observer.observe(page);
     window.addEventListener('resize', recompute);
+    // Recompute on the next frame too, after fonts/images settle.
+    const raf = requestAnimationFrame(recompute);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', recompute);
+      cancelAnimationFrame(raf);
     };
-  }, [readOnly]);
+  }, [readOnly, cardLayout]);
 
   return (
     <div
